@@ -1,0 +1,239 @@
+# Security Configuration for Secure Multi-Agent MCP System
+
+# Authentication Settings
+authentication:
+  # Certificate Authority settings
+  ca:
+    key_size: 2048
+    public_exponent: 65537
+    validity_period: 31536000  # 1 year in seconds
+  
+  # Agent registration settings
+  registration:
+    min_capabilities: 1
+    max_capabilities: 10
+    require_metadata: true
+    auto_activate: false
+  
+  # Identity verification settings
+  verification:
+    require_signature: true
+    signature_algorithm: "PSS"
+    hash_algorithm: "SHA256"
+    max_verification_attempts: 3
+
+# Trust Management Settings
+trust:
+  # Trust calculation parameters
+  calculation:
+    decay_factor: 0.95
+    min_events: 5
+    window_size: 100
+    update_interval: 60  # seconds
+  
+  # Trust dimensions and weights
+  dimensions:
+    competence:
+      weight: 0.3
+      min_events: 3
+    reliability:
+      weight: 0.25
+      min_events: 3
+    honesty:
+      weight: 0.2
+      min_events: 2
+    cooperation:
+      weight: 0.15
+      min_events: 2
+    security:
+      weight: 0.1
+      min_events: 1
+  
+  # Event type weights
+  event_weights:
+    task_success: 0.3
+    task_failure: -0.2
+    security_violation: -0.5
+    cooperation_positive: 0.15
+    cooperation_negative: -0.15
+    honesty_positive: 0.2
+    honesty_negative: -0.3
+  
+  # Sybil detection settings
+  sybil_detection:
+    threshold: 0.8
+    behavior_similarity_weight: 0.3
+    connectivity_weight: 0.2
+    timing_weight: 0.2
+    trust_pattern_weight: 0.3
+    min_connections_for_sybil: 10
+  
+  # Collusion detection settings
+  collusion_detection:
+    threshold: 0.7
+    mutual_rating_threshold: 3
+    timing_similarity_weight: 0.3
+    behavior_coordination_weight: 0.3
+    mutual_rating_weight: 0.4
+
+# Access Control Settings
+access_control:
+  # Role-based access control
+  rbac:
+    default_role: "worker"
+    roles:
+      worker:
+        permissions: ["execute_task", "report_trust"]
+        restrictions: ["admin_operations"]
+      coordinator:
+        permissions: ["execute_task", "report_trust", "allocate_task", "monitor_agents"]
+        restrictions: ["system_configuration"]
+      monitor:
+        permissions: ["monitor_agents", "view_trust_scores", "detect_threats"]
+        restrictions: ["execute_task", "allocate_task"]
+      admin:
+        permissions: ["*"]
+        restrictions: []
+  
+  # Capability-based access control
+  cbac:
+    require_capability_match: true
+    allow_capability_override: false
+    capability_verification: true
+  
+  # Attribute-based access control
+  abac:
+    context_attributes:
+      - "time_of_day"
+      - "agent_location"
+      - "task_priority"
+      - "trust_score"
+    policy_engine: "xacml"
+
+# Communication Security Settings
+communication:
+  # Encryption settings
+  encryption:
+    algorithm: "AES-256-GCM"
+    key_size: 256
+    iv_size: 96
+    tag_size: 128
+  
+  # Key exchange settings
+  key_exchange:
+    algorithm: "ECDH"
+    curve: "secp256r1"
+    perfect_forward_secrecy: true
+  
+  # Message authentication
+  authentication:
+    algorithm: "HMAC-SHA256"
+    key_size: 256
+  
+  # Replay protection
+  replay_protection:
+    enabled: true
+    window_size: 1000
+    max_age: 300  # seconds
+  
+  # Connection settings
+  connection:
+    timeout: 30  # seconds
+    max_retries: 3
+    keep_alive: true
+    keep_alive_interval: 60  # seconds
+
+# Task Allocation Settings
+task_allocation:
+  # Trust-aware allocation
+  trust_aware:
+    enabled: true
+    min_trust_score: 0.3
+    trust_weight: 0.7
+    capability_weight: 0.3
+  
+  # Load balancing
+  load_balancing:
+    algorithm: "weighted_round_robin"
+    weight_by_trust: true
+    weight_by_capability: true
+    max_tasks_per_agent: 10
+  
+  # Fault tolerance
+  fault_tolerance:
+    max_retries: 3
+    retry_delay: 5  # seconds
+    timeout: 300  # seconds
+    fallback_agents: 2
+
+# Monitoring and Logging Settings
+monitoring:
+  # Security monitoring
+  security:
+    enabled: true
+    log_level: "INFO"
+    alert_thresholds:
+      failed_authentications: 5
+      trust_score_drop: 0.3
+      sybil_detection: 1
+      collusion_detection: 1
+  
+  # Performance monitoring
+  performance:
+    enabled: true
+    metrics_interval: 60  # seconds
+    track_metrics:
+      - "task_allocation_time"
+      - "trust_calculation_time"
+      - "authentication_time"
+      - "communication_overhead"
+  
+  # Audit logging
+  audit:
+    enabled: true
+    log_all_events: true
+    retention_period: 2592000  # 30 days in seconds
+    log_format: "json"
+
+# MCP Integration Settings
+mcp_integration:
+  # MCP server security
+  server_security:
+    require_authentication: true
+    require_authorization: true
+    tool_verification: true
+    context_encryption: true
+  
+  # Tool verification
+  tool_verification:
+    enabled: true
+    signature_verification: true
+    capability_verification: true
+    sandbox_execution: true
+  
+  # Context management
+  context_management:
+    encryption: true
+    isolation: true
+    sharing_policy: "trust_based"
+    max_context_size: 1048576  # 1MB
+
+# System Settings
+system:
+  # General settings
+  max_agents: 1000
+  max_tasks_per_agent: 100
+  system_timeout: 3600  # 1 hour
+  
+  # Performance settings
+  performance:
+    max_concurrent_tasks: 100
+    task_queue_size: 1000
+    trust_calculation_batch_size: 50
+  
+  # Security settings
+  security:
+    max_failed_attempts: 5
+    lockout_duration: 300  # 5 minutes
+    session_timeout: 1800  # 30 minutes
+    require_https: true
