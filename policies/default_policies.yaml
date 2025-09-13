@@ -1,0 +1,184 @@
+# Default Security Policies for MCP Security Framework
+# These policies provide baseline security controls for the framework
+
+policies:
+  # Trust-based access control
+  - policy_id: "trust_threshold"
+    name: "Trust Threshold Policy"
+    description: "Require minimum trust score for tool access"
+    priority: 100
+    enabled: true
+    rules:
+      - condition: "agent_trust_score < 0.3"
+        action: "deny"
+        reason: "Insufficient trust score"
+        severity: "medium"
+      - condition: "agent_trust_score < 0.5 and tool_risk_level in ['high', 'critical']"
+        action: "deny"
+        reason: "High-risk tool requires higher trust score"
+        severity: "high"
+
+  # High-risk tool access control
+  - policy_id: "high_risk_tools"
+    name: "High Risk Tool Policy"
+    description: "Restrict access to high-risk tools"
+    priority: 90
+    enabled: true
+    rules:
+      - condition: "tool_risk_level == 'critical'"
+        action: "deny"
+        reason: "Critical risk tool access denied"
+        severity: "critical"
+      - condition: "tool_risk_level == 'high' and agent_trust_score < 0.7"
+        action: "deny"
+        reason: "High risk tool requires high trust"
+        severity: "high"
+      - condition: "tool_risk_level == 'high' and agent_type not in ['coordinator', 'monitor']"
+        action: "deny"
+        reason: "High risk tools restricted to coordinators and monitors"
+        severity: "high"
+
+  # Capability-based access control
+  - policy_id: "capability_matching"
+    name: "Capability Matching Policy"
+    description: "Ensure agent has required capabilities"
+    priority: 80
+    enabled: true
+    rules:
+      - condition: "not agent_has_capability('tool_execution')"
+        action: "deny"
+        reason: "Agent lacks tool execution capability"
+        severity: "medium"
+      - condition: "tool_id == 'system_monitor' and not agent_has_capability('system_monitoring')"
+        action: "deny"
+        reason: "System monitoring capability required"
+        severity: "high"
+      - condition: "tool_id == 'data_analyzer' and not agent_has_capability('data_analysis')"
+        action: "deny"
+        reason: "Data analysis capability required"
+        severity: "medium"
+
+  # Rate limiting
+  - policy_id: "rate_limiting"
+    name: "Rate Limiting Policy"
+    description: "Limit tool execution frequency"
+    priority: 70
+    enabled: true
+    rules:
+      - condition: "execution_count > 100 and time_window < 3600"
+        action: "deny"
+        reason: "Rate limit exceeded - too many requests per hour"
+        severity: "medium"
+      - condition: "execution_count > 10 and time_window < 60"
+        action: "deny"
+        reason: "Rate limit exceeded - too many requests per minute"
+        severity: "low"
+
+  # Time-based access control
+  - policy_id: "time_based_access"
+    name: "Time-Based Access Policy"
+    description: "Restrict access based on time of day"
+    priority: 60
+    enabled: false  # Disabled by default
+    rules:
+      - condition: "current_hour < 6 or current_hour > 22"
+        action: "deny"
+        reason: "Access restricted outside business hours"
+        severity: "low"
+
+  # Agent type restrictions
+  - policy_id: "agent_type_restrictions"
+    name: "Agent Type Restrictions"
+    description: "Restrict tools based on agent type"
+    priority: 50
+    enabled: true
+    rules:
+      - condition: "agent_type == 'worker' and tool_id == 'system_monitor'"
+        action: "deny"
+        reason: "System monitoring restricted to coordinators and monitors"
+        severity: "high"
+      - condition: "agent_type == 'worker' and tool_risk_level == 'critical'"
+        action: "deny"
+        reason: "Critical tools restricted to coordinators and monitors"
+        severity: "critical"
+
+  # Parameter validation
+  - policy_id: "parameter_validation"
+    name: "Parameter Validation Policy"
+    description: "Validate tool parameters for security"
+    priority: 40
+    enabled: true
+    rules:
+      - condition: "tool_id == 'data_analyzer' and 'dataset' in parameters and '..' in parameters['dataset']"
+        action: "deny"
+        reason: "Path traversal attempt detected"
+        severity: "high"
+      - condition: "tool_id == 'system_monitor' and 'duration' in parameters and parameters['duration'] > 3600"
+        action: "deny"
+        reason: "Monitoring duration too long"
+        severity: "medium"
+
+  # Session management
+  - policy_id: "session_management"
+    name: "Session Management Policy"
+    description: "Manage agent sessions and timeouts"
+    priority: 30
+    enabled: true
+    rules:
+      - condition: "session_age > 3600"
+        action: "deny"
+        reason: "Session expired"
+        severity: "low"
+      - condition: "concurrent_sessions > 3"
+        action: "deny"
+        reason: "Too many concurrent sessions"
+        severity: "medium"
+
+  # Security monitoring
+  - policy_id: "security_monitoring"
+    name: "Security Monitoring Policy"
+    description: "Monitor for security violations"
+    priority: 20
+    enabled: true
+    rules:
+      - condition: "recent_failures > 5 and time_window < 300"
+        action: "deny"
+        reason: "Too many recent failures - possible attack"
+        severity: "high"
+      - condition: "unusual_access_pattern == true"
+        action: "deny"
+        reason: "Unusual access pattern detected"
+        severity: "medium"
+
+  # Compliance and audit
+  - policy_id: "compliance_audit"
+    name: "Compliance and Audit Policy"
+    description: "Ensure compliance with security requirements"
+    priority: 10
+    enabled: true
+    rules:
+      - condition: "audit_logging_enabled == false"
+        action: "deny"
+        reason: "Audit logging must be enabled"
+        severity: "high"
+      - condition: "encryption_required == true and encryption_enabled == false"
+        action: "deny"
+        reason: "Encryption required but not enabled"
+        severity: "critical"
+
+# Policy evaluation settings
+evaluation_settings:
+  default_action: "allow"  # Default action when no policy matches
+  fail_closed: true  # Fail closed when policy evaluation fails
+  cache_decisions: true  # Cache policy decisions for performance
+  cache_ttl: 300  # Cache TTL in seconds
+  max_evaluation_time: 5.0  # Maximum time for policy evaluation
+  enable_audit_logging: true  # Log all policy decisions
+
+# Policy update settings
+update_settings:
+  auto_reload: true  # Automatically reload policies when files change
+  reload_interval: 300  # Reload interval in seconds
+  backup_policies: true  # Backup policies before updates
+  validation_required: true  # Validate policies before applying
+  rollback_on_error: true  # Rollback to previous version on error
