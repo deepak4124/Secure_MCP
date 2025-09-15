@@ -1,239 +1,198 @@
-# Security Configuration for Secure Multi-Agent MCP System
+# MCP Security Framework Configuration
+# This file contains the default security configuration for the framework
 
-# Authentication Settings
-authentication:
-  # Certificate Authority settings
-  ca:
-    key_size: 2048
-    public_exponent: 65537
-    validity_period: 31536000  # 1 year in seconds
-  
-  # Agent registration settings
-  registration:
-    min_capabilities: 1
-    max_capabilities: 10
-    require_metadata: true
-    auto_activate: false
-  
-  # Identity verification settings
-  verification:
-    require_signature: true
-    signature_algorithm: "PSS"
-    hash_algorithm: "SHA256"
-    max_verification_attempts: 3
+# Identity Management Configuration
+identity_management:
+  require_authentication: true
+  require_authorization: true
+  certificate_validation: true
+  identity_proof_required: true
+  session_timeout: 3600  # seconds
+  max_sessions_per_agent: 5
+  session_cleanup_interval: 300  # seconds
 
-# Trust Management Settings
-trust:
-  # Trust calculation parameters
-  calculation:
-    decay_factor: 0.95
-    min_events: 5
-    window_size: 100
-    update_interval: 60  # seconds
-  
-  # Trust dimensions and weights
-  dimensions:
-    competence:
-      weight: 0.3
-      min_events: 3
-    reliability:
-      weight: 0.25
-      min_events: 3
-    honesty:
-      weight: 0.2
-      min_events: 2
-    cooperation:
-      weight: 0.15
-      min_events: 2
-    security:
-      weight: 0.1
-      min_events: 1
-  
-  # Event type weights
-  event_weights:
-    task_success: 0.3
-    task_failure: -0.2
-    security_violation: -0.5
-    cooperation_positive: 0.15
-    cooperation_negative: -0.15
-    honesty_positive: 0.2
-    honesty_negative: -0.3
-  
-  # Sybil detection settings
-  sybil_detection:
-    threshold: 0.8
-    behavior_similarity_weight: 0.3
-    connectivity_weight: 0.2
-    timing_weight: 0.2
-    trust_pattern_weight: 0.3
-    min_connections_for_sybil: 10
-  
-  # Collusion detection settings
-  collusion_detection:
-    threshold: 0.7
-    mutual_rating_threshold: 3
-    timing_similarity_weight: 0.3
-    behavior_coordination_weight: 0.3
-    mutual_rating_weight: 0.4
+# Trust Calculation Configuration
+trust_calculation:
+  decay_factor: 0.95  # Trust decay per hour
+  min_events: 5  # Minimum events for reliable trust score
+  window_size: 100  # Sliding window size for event analysis
+  sybil_threshold: 0.8  # Threshold for sybil attack detection
+  collusion_threshold: 0.7  # Threshold for collusion detection
+  trust_update_interval: 60  # seconds
+  max_trust_events: 1000  # Maximum events to store per agent
 
-# Access Control Settings
-access_control:
-  # Role-based access control
-  rbac:
-    default_role: "worker"
-    roles:
-      worker:
-        permissions: ["execute_task", "report_trust"]
-        restrictions: ["admin_operations"]
-      coordinator:
-        permissions: ["execute_task", "report_trust", "allocate_task", "monitor_agents"]
-        restrictions: ["system_configuration"]
-      monitor:
-        permissions: ["monitor_agents", "view_trust_scores", "detect_threats"]
-        restrictions: ["execute_task", "allocate_task"]
-      admin:
-        permissions: ["*"]
-        restrictions: []
-  
-  # Capability-based access control
-  cbac:
-    require_capability_match: true
-    allow_capability_override: false
-    capability_verification: true
-  
-  # Attribute-based access control
-  abac:
-    context_attributes:
-      - "time_of_day"
-      - "agent_location"
-      - "task_priority"
-      - "trust_score"
-    policy_engine: "xacml"
-
-# Communication Security Settings
-communication:
-  # Encryption settings
-  encryption:
-    algorithm: "AES-256-GCM"
-    key_size: 256
-    iv_size: 96
-    tag_size: 128
-  
-  # Key exchange settings
-  key_exchange:
-    algorithm: "ECDH"
-    curve: "secp256r1"
-    perfect_forward_secrecy: true
-  
-  # Message authentication
-  authentication:
-    algorithm: "HMAC-SHA256"
-    key_size: 256
-  
-  # Replay protection
-  replay_protection:
-    enabled: true
-    window_size: 1000
-    max_age: 300  # seconds
-  
-  # Connection settings
-  connection:
-    timeout: 30  # seconds
-    max_retries: 3
-    keep_alive: true
-    keep_alive_interval: 60  # seconds
-
-# Task Allocation Settings
-task_allocation:
-  # Trust-aware allocation
-  trust_aware:
-    enabled: true
-    min_trust_score: 0.3
-    trust_weight: 0.7
-    capability_weight: 0.3
-  
-  # Load balancing
-  load_balancing:
-    algorithm: "weighted_round_robin"
-    weight_by_trust: true
-    weight_by_capability: true
-    max_tasks_per_agent: 10
-  
-  # Fault tolerance
-  fault_tolerance:
-    max_retries: 3
-    retry_delay: 5  # seconds
-    timeout: 300  # seconds
-    fallback_agents: 2
-
-# Monitoring and Logging Settings
-monitoring:
-  # Security monitoring
-  security:
-    enabled: true
-    log_level: "INFO"
-    alert_thresholds:
-      failed_authentications: 5
-      trust_score_drop: 0.3
-      sybil_detection: 1
-      collusion_detection: 1
-  
-  # Performance monitoring
-  performance:
-    enabled: true
-    metrics_interval: 60  # seconds
-    track_metrics:
-      - "task_allocation_time"
-      - "trust_calculation_time"
-      - "authentication_time"
-      - "communication_overhead"
-  
-  # Audit logging
-  audit:
-    enabled: true
-    log_all_events: true
-    retention_period: 2592000  # 30 days in seconds
-    log_format: "json"
-
-# MCP Integration Settings
+# MCP Integration Configuration
 mcp_integration:
-  # MCP server security
   server_security:
     require_authentication: true
     require_authorization: true
     tool_verification: true
     context_encryption: true
+    connection_timeout: 30  # seconds
+    max_retries: 3
   
-  # Tool verification
   tool_verification:
     enabled: true
     signature_verification: true
     capability_verification: true
     sandbox_execution: true
+    static_analysis: true
+    dynamic_analysis: false
+    verification_timeout: 60  # seconds
   
-  # Context management
-  context_management:
-    encryption: true
-    isolation: true
-    sharing_policy: "trust_based"
-    max_context_size: 1048576  # 1MB
+  discovery:
+    auto_discover: true
+    network_scan: false
+    trusted_servers:
+      - "localhost:3000"
+      - "localhost:3001"
+      - "localhost:3002"
+    scan_interval: 300  # seconds
+    max_servers: 50
 
-# System Settings
-system:
-  # General settings
-  max_agents: 1000
-  max_tasks_per_agent: 100
-  system_timeout: 3600  # 1 hour
+# Policy Engine Configuration
+policy_engine:
+  default_policies: true
+  policy_file: "policies/default_policies.yaml"
+  evaluation_timeout: 5.0  # seconds
+  cache_policies: true
+  cache_size: 1000
+  policy_update_interval: 300  # seconds
+  enable_audit_logging: true
+
+# Tool Registry Configuration
+tool_registry:
+  auto_register: true
+  verification_required: true
+  attestation_required: true
+  max_tools_per_agent: 50
+  max_tool_versions: 10
+  cleanup_interval: 3600  # seconds
+  enable_usage_tracking: true
+
+# Logging Configuration
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  audit_logging: true
+  security_events: true
+  log_file: "logs/security.log"
+  audit_file: "logs/audit.log"
+  max_log_size: 10485760  # 10MB
+  backup_count: 5
+  console_output: true
+  structured_logging: true
+
+# Cryptography Configuration
+cryptography:
+  key_size: 2048  # 1024, 2048, 3072, 4096
+  hash_algorithm: SHA256  # SHA256, SHA512
+  signature_algorithm: RSA-PSS  # RSA-PSS, RSA-PKCS1
+  encryption_algorithm: AES-256-GCM  # AES-256-GCM, AES-256-CBC
+  key_rotation_interval: 86400  # seconds (24 hours)
+  certificate_validity_days: 365
+
+# MAS Adapters Configuration
+mas_adapters:
+  langgraph:
+    enabled: true
+    workflow_security: true
+    node_verification: true
+    execution_timeout: 300  # seconds
+    max_concurrent_workflows: 10
   
-  # Performance settings
-  performance:
-    max_concurrent_tasks: 100
-    task_queue_size: 1000
-    trust_calculation_batch_size: 50
+  autogen:
+    enabled: true
+    conversation_security: true
+    message_encryption: true
+    conversation_timeout: 1800  # seconds
+    max_conversation_participants: 20
   
-  # Security settings
-  security:
-    max_failed_attempts: 5
-    lockout_duration: 300  # 5 minutes
-    session_timeout: 1800  # 30 minutes
-    require_https: true
+  crewai:
+    enabled: true
+    crew_verification: true
+    task_security: true
+    crew_timeout: 3600  # seconds
+    max_crew_members: 15
+
+# Performance Configuration
+performance:
+  max_concurrent_operations: 100
+  operation_timeout: 30.0  # seconds
+  cache_size: 1000
+  cleanup_interval: 3600  # seconds
+  memory_limit: 1073741824  # 1GB
+  cpu_limit: 80  # percentage
+
+# Security Configuration
+security:
+  rate_limiting:
+    enabled: true
+    max_requests_per_minute: 100
+    max_requests_per_hour: 1000
+    max_requests_per_day: 10000
+    rate_limit_window: 60  # seconds
+  
+  threat_detection:
+    enabled: true
+    anomaly_detection: true
+    pattern_analysis: true
+    real_time_monitoring: true
+    alert_threshold: 0.8
+    auto_response: false
+  
+  monitoring:
+    enabled: true
+    metrics_collection: true
+    health_checks: true
+    performance_monitoring: true
+    alert_threshold: 0.8
+    notification_channels: []  # email, slack, webhook
+  
+  access_control:
+    default_deny: true
+    require_explicit_permissions: true
+    enable_role_based_access: true
+    enable_capability_based_access: true
+    enable_attribute_based_access: true
+
+# Network Configuration
+network:
+  bind_address: "0.0.0.0"
+  port: 8080
+  ssl_enabled: false
+  ssl_cert_file: ""
+  ssl_key_file: ""
+  cors_enabled: true
+  cors_origins: ["*"]
+  max_request_size: 10485760  # 10MB
+
+# Database Configuration (if using persistent storage)
+database:
+  enabled: false
+  type: "sqlite"  # sqlite, postgresql, mysql
+  connection_string: "sqlite:///mcp_security.db"
+  pool_size: 10
+  max_overflow: 20
+  pool_timeout: 30
+  pool_recycle: 3600
+
+# External Services Configuration
+external_services:
+  certificate_authority:
+    enabled: false
+    url: ""
+    api_key: ""
+    timeout: 30
+  
+  threat_intelligence:
+    enabled: false
+    providers: []  # virustotal, abuseipdb, etc.
+    api_keys: {}
+    update_interval: 3600
+  
+  notification_service:
+    enabled: false
+    type: "email"  # email, slack, webhook
+    config: {}
+    retry_attempts: 3
+    retry_delay: 60
