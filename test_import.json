@@ -1,0 +1,248 @@
+{
+  "import_tests": [
+    {
+      "name": "core_imports",
+      "description": "Test imports of core framework modules",
+      "imports": [
+        {
+          "module": "mcp_security_framework.core.identity",
+          "classes": ["IdentityManager", "AgentType", "IdentityStatus", "AgentIdentity"]
+        },
+        {
+          "module": "mcp_security_framework.core.trust",
+          "classes": ["TrustCalculator", "TrustEvent", "TrustEventType", "TrustDimension", "TrustScore"]
+        },
+        {
+          "module": "mcp_security_framework.core.policy",
+          "classes": ["PolicyEngine", "PolicyContext", "PolicyDecision"]
+        },
+        {
+          "module": "mcp_security_framework.core.gateway",
+          "classes": ["MCPSecurityGateway"]
+        },
+        {
+          "module": "mcp_security_framework.core.registry",
+          "classes": ["ToolRegistry"]
+        }
+      ]
+    },
+    {
+      "name": "security_imports",
+      "description": "Test imports of security modules",
+      "imports": [
+        {
+          "module": "mcp_security_framework.security.adaptation.adaptive_security",
+          "classes": ["AdaptiveSecurity"]
+        },
+        {
+          "module": "mcp_security_framework.security.advanced.advanced_behavioral_analysis",
+          "classes": ["AdvancedBehavioralAnalysis"]
+        },
+        {
+          "module": "mcp_security_framework.security.advanced.dynamic_trust_manager",
+          "classes": ["DynamicTrustManager"]
+        },
+        {
+          "module": "mcp_security_framework.security.analysis.role_based_security",
+          "classes": ["RoleBasedSecurity"]
+        },
+        {
+          "module": "mcp_security_framework.security.communication.secure_communication",
+          "classes": ["SecureCommunication"]
+        },
+        {
+          "module": "mcp_security_framework.security.monitoring.advanced_monitoring",
+          "classes": ["AdvancedMonitoring"]
+        }
+      ]
+    },
+    {
+      "name": "adapter_imports",
+      "description": "Test imports of adapter modules",
+      "imports": [
+        {
+          "module": "mcp_security_framework.adapters.base",
+          "classes": ["BaseAdapter"]
+        },
+        {
+          "module": "mcp_security_framework.adapters.autogen",
+          "classes": ["AutoGenAdapter"]
+        },
+        {
+          "module": "mcp_security_framework.adapters.crewai",
+          "classes": ["CrewAIAdapter"]
+        },
+        {
+          "module": "mcp_security_framework.adapters.langgraph",
+          "classes": ["LangGraphAdapter"]
+        }
+      ]
+    },
+    {
+      "name": "benchmarking_imports",
+      "description": "Test imports of benchmarking modules",
+      "imports": [
+        {
+          "module": "mcp_security_framework.benchmarking.benchmark_runner",
+          "classes": ["BenchmarkRunner"]
+        },
+        {
+          "module": "mcp_security_framework.benchmarking.performance_benchmarker",
+          "classes": ["PerformanceBenchmarker"]
+        },
+        {
+          "module": "mcp_security_framework.benchmarking.security_benchmarker",
+          "classes": ["SecurityBenchmarker"]
+        },
+        {
+          "module": "mcp_security_framework.benchmarking.compliance_benchmarker",
+          "classes": ["ComplianceBenchmarker"]
+        }
+      ]
+    },
+    {
+      "name": "utility_imports",
+      "description": "Test imports of utility modules",
+      "imports": [
+        {
+          "module": "mcp_security_framework.utils.config",
+          "classes": ["ConfigManager"]
+        },
+        {
+          "module": "mcp_security_framework.utils.crypto",
+          "classes": ["CryptoUtils"]
+        },
+        {
+          "module": "mcp_security_framework.utils.logging",
+          "classes": ["LoggingManager"]
+        }
+      ]
+    }
+  ],
+  "test_configurations": [
+    {
+      "name": "basic_functionality",
+      "description": "Test basic framework functionality",
+      "tests": [
+        {
+          "test_name": "identity_manager_creation",
+          "module": "mcp_security_framework.core.identity",
+          "class": "IdentityManager",
+          "method": "__init__",
+          "args": [],
+          "expected_result": "IdentityManager instance"
+        },
+        {
+          "test_name": "trust_calculator_creation",
+          "module": "mcp_security_framework.core.trust",
+          "class": "TrustCalculator",
+          "method": "__init__",
+          "args": [],
+          "expected_result": "TrustCalculator instance"
+        },
+        {
+          "test_name": "policy_engine_creation",
+          "module": "mcp_security_framework.core.policy",
+          "class": "PolicyEngine",
+          "method": "__init__",
+          "args": [],
+          "expected_result": "PolicyEngine instance"
+        }
+      ]
+    },
+    {
+      "name": "integration_tests",
+      "description": "Test framework integration",
+      "tests": [
+        {
+          "test_name": "gateway_initialization",
+          "module": "mcp_security_framework.core.gateway",
+          "class": "MCPSecurityGateway",
+          "method": "__init__",
+          "args": ["config/security_config.yaml"],
+          "expected_result": "MCPSecurityGateway instance"
+        },
+        {
+          "test_name": "tool_registry_creation",
+          "module": "mcp_security_framework.core.registry",
+          "class": "ToolRegistry",
+          "method": "__init__",
+          "args": [],
+          "expected_result": "ToolRegistry instance"
+        }
+      ]
+    }
+  ],
+  "validation_checks": [
+    {
+      "name": "module_structure",
+      "description": "Validate module structure and organization",
+      "checks": [
+        {
+          "check": "core_modules_exist",
+          "path": "mcp_security_framework/core/",
+          "required_files": [
+            "__init__.py",
+            "identity.py",
+            "trust.py",
+            "policy.py",
+            "gateway.py",
+            "registry.py"
+          ]
+        },
+        {
+          "check": "security_modules_exist",
+          "path": "mcp_security_framework/security/",
+          "required_directories": [
+            "adaptation",
+            "advanced",
+            "analysis",
+            "communication",
+            "monitoring"
+          ]
+        },
+        {
+          "check": "adapter_modules_exist",
+          "path": "mcp_security_framework/adapters/",
+          "required_files": [
+            "__init__.py",
+            "base.py",
+            "autogen.py",
+            "crewai.py",
+            "langgraph.py"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "dependency_checks",
+      "description": "Check for required dependencies",
+      "checks": [
+        {
+          "check": "python_version",
+          "requirement": ">=3.8",
+          "description": "Python version compatibility"
+        },
+        {
+          "check": "required_packages",
+          "packages": [
+            "numpy",
+            "pydantic",
+            "pyyaml",
+            "cryptography",
+            "psutil",
+            "aiohttp"
+          ],
+          "description": "Required Python packages"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "version": "1.0.0",
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z",
+    "author": "MCP Security Framework",
+    "description": "Import test configuration for MCP Security Framework validation"
+  }
+}

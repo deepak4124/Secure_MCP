@@ -1,0 +1,51 @@
+# Test dependencies for MCP Security Framework
+
+# Core testing framework
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+pytest-xdist>=3.0.0
+
+# Coverage reporting
+coverage>=7.0.0
+
+# Code quality
+flake8>=6.0.0
+black>=23.0.0
+isort>=5.12.0
+
+# Performance testing
+pytest-benchmark>=4.0.0
+
+# Mock and fixtures
+factory-boy>=3.2.0
+faker>=18.0.0
+
+# Async testing utilities
+aioresponses>=0.7.4
+
+# Test reporting
+pytest-html>=3.1.0
+pytest-json-report>=1.5.0
+
+# Memory profiling (optional) - Windows not supported
+# pytest-memray>=1.4.0
+
+# All existing framework dependencies
+torch>=2.0.0
+transformers>=4.30.0
+datasets>=2.12.0
+accelerate>=0.20.0
+scikit-learn>=1.3.0
+numpy>=1.24.0
+pandas>=2.0.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+cryptography>=41.0.0
+pycryptodome>=3.18.0
+fastapi>=0.100.0
+uvicorn>=0.22.0
+pydantic>=2.0.0
+psutil>=5.9.0
+huggingface-hub>=0.16.0

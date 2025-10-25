@@ -237,6 +237,18 @@ class PolicyEngine:
         # Default to allow if no policy makes a decision
         return PolicyDecision.ALLOW
     
+    def evaluate_policy(self, context: PolicyContext) -> PolicyDecision:
+        """
+        Evaluate policy for a given context (alias for evaluate_access)
+        
+        Args:
+            context: Policy evaluation context
+            
+        Returns:
+            Policy decision
+        """
+        return self.evaluate_access(context)
+    
     def _evaluate_policy(
         self, 
         policy: AccessPolicy, 

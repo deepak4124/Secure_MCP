@@ -1,0 +1,241 @@
+{
+  "policies": [
+    {
+      "id": "admin_access",
+      "name": "Administrator Access Policy",
+      "description": "Policy for administrator-level access to system resources",
+      "rules": [
+        {
+          "action": "allow",
+          "resource": "*",
+          "conditions": {
+            "agent_type": "admin",
+            "trust_score": {
+              "min": 0.8
+            },
+            "authentication": "required"
+          }
+        }
+      ],
+      "priority": 1
+    },
+    {
+      "id": "user_access",
+      "name": "User Access Policy",
+      "description": "Policy for regular user access to system resources",
+      "rules": [
+        {
+          "action": "allow",
+          "resource": "user_resources",
+          "conditions": {
+            "agent_type": "user",
+            "trust_score": {
+              "min": 0.5
+            },
+            "authentication": "required"
+          }
+        },
+        {
+          "action": "deny",
+          "resource": "admin_resources",
+          "conditions": {
+            "agent_type": "user"
+          }
+        }
+      ],
+      "priority": 2
+    },
+    {
+      "id": "guest_access",
+      "name": "Guest Access Policy",
+      "description": "Policy for guest access with limited permissions",
+      "rules": [
+        {
+          "action": "allow",
+          "resource": "public_resources",
+          "conditions": {
+            "agent_type": "guest",
+            "trust_score": {
+              "min": 0.3
+            }
+          }
+        },
+        {
+          "action": "deny",
+          "resource": "private_resources",
+          "conditions": {
+            "agent_type": "guest"
+          }
+        }
+      ],
+      "priority": 3
+    },
+    {
+      "id": "security_violation",
+      "name": "Security Violation Policy",
+      "description": "Policy for handling security violations",
+      "rules": [
+        {
+          "action": "deny",
+          "resource": "*",
+          "conditions": {
+            "security_violation": true
+          }
+        },
+        {
+          "action": "alert",
+          "resource": "*",
+          "conditions": {
+            "security_violation": true
+          }
+        }
+      ],
+      "priority": 0
+    },
+    {
+      "id": "trust_based_access",
+      "name": "Trust-Based Access Policy",
+      "description": "Policy for access based on trust scores",
+      "rules": [
+        {
+          "action": "allow",
+          "resource": "high_trust_resources",
+          "conditions": {
+            "trust_score": {
+              "min": 0.9
+            }
+          }
+        },
+        {
+          "action": "allow",
+          "resource": "medium_trust_resources",
+          "conditions": {
+            "trust_score": {
+              "min": 0.7,
+              "max": 0.9
+            }
+          }
+        },
+        {
+          "action": "allow",
+          "resource": "low_trust_resources",
+          "conditions": {
+            "trust_score": {
+              "min": 0.5,
+              "max": 0.7
+            }
+          }
+        }
+      ],
+      "priority": 4
+    },
+    {
+      "id": "time_based_access",
+      "name": "Time-Based Access Policy",
+      "description": "Policy for time-based access restrictions",
+      "rules": [
+        {
+          "action": "allow",
+          "resource": "business_hours_resources",
+          "conditions": {
+            "time": {
+              "start": "09:00",
+              "end": "17:00",
+              "timezone": "UTC"
+            }
+          }
+        },
+        {
+          "action": "deny",
+          "resource": "business_hours_resources",
+          "conditions": {
+            "time": {
+              "start": "17:00",
+              "end": "09:00",
+              "timezone": "UTC"
+            }
+          }
+        }
+      ],
+      "priority": 5
+    },
+    {
+      "id": "encryption_required",
+      "name": "Encryption Required Policy",
+      "description": "Policy requiring encryption for sensitive operations",
+      "rules": [
+        {
+          "action": "allow",
+          "resource": "sensitive_resources",
+          "conditions": {
+            "encryption": "required",
+            "encryption_algorithm": "AES-256-GCM"
+          }
+        },
+        {
+          "action": "deny",
+          "resource": "sensitive_resources",
+          "conditions": {
+            "encryption": "none"
+          }
+        }
+      ],
+      "priority": 6
+    },
+    {
+      "id": "rate_limiting",
+      "name": "Rate Limiting Policy",
+      "description": "Policy for rate limiting requests",
+      "rules": [
+        {
+          "action": "allow",
+          "resource": "*",
+          "conditions": {
+            "rate_limit": {
+              "requests_per_minute": 100
+            }
+          }
+        },
+        {
+          "action": "throttle",
+          "resource": "*",
+          "conditions": {
+            "rate_limit": {
+              "requests_per_minute": 200
+            }
+          }
+        },
+        {
+          "action": "deny",
+          "resource": "*",
+          "conditions": {
+            "rate_limit": {
+              "requests_per_minute": 300
+            }
+          }
+        }
+      ],
+      "priority": 7
+    }
+  ],
+  "default_policy": {
+    "id": "default",
+    "name": "Default Policy",
+    "description": "Default policy for unmatched requests",
+    "rules": [
+      {
+        "action": "deny",
+        "resource": "*",
+        "conditions": {}
+      }
+    ],
+    "priority": 999
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z",
+    "author": "MCP Security Framework",
+    "description": "Test policies for MCP Security Framework validation"
+  }
+}

@@ -47,6 +47,7 @@ class TrustEventType(Enum):
     COOPERATION_NEGATIVE = "cooperation_negative"
     HONESTY_POSITIVE = "honesty_positive"
     HONESTY_NEGATIVE = "honesty_negative"
+    SUCCESSFUL_OPERATION = "successful_operation"
 
 
 @dataclass
@@ -143,7 +144,8 @@ class TrustCalculator:
             TrustEventType.COOPERATION_POSITIVE: 0.15,
             TrustEventType.COOPERATION_NEGATIVE: -0.15,
             TrustEventType.HONESTY_POSITIVE: 0.2,
-            TrustEventType.HONESTY_NEGATIVE: -0.3
+            TrustEventType.HONESTY_NEGATIVE: -0.3,
+            TrustEventType.SUCCESSFUL_OPERATION: 0.3
         }
     
     def add_trust_event(self, event: TrustEvent) -> bool:
@@ -542,11 +544,11 @@ class TrustCalculator:
     def _filter_events_by_dimension(self, events: List[TrustEvent], dimension: TrustDimension) -> List[TrustEvent]:
         """Filter events by trust dimension"""
         dimension_mapping = {
-            TrustDimension.COMPETENCE: [TrustEventType.TASK_SUCCESS, TrustEventType.TASK_FAILURE],
-            TrustDimension.RELIABILITY: [TrustEventType.TASK_SUCCESS, TrustEventType.TASK_FAILURE],
+            TrustDimension.COMPETENCE: [TrustEventType.TASK_SUCCESS, TrustEventType.TASK_FAILURE, TrustEventType.SUCCESSFUL_OPERATION],
+            TrustDimension.RELIABILITY: [TrustEventType.TASK_SUCCESS, TrustEventType.TASK_FAILURE, TrustEventType.SUCCESSFUL_OPERATION],
             TrustDimension.HONESTY: [TrustEventType.HONESTY_POSITIVE, TrustEventType.HONESTY_NEGATIVE],
             TrustDimension.COOPERATION: [TrustEventType.COOPERATION_POSITIVE, TrustEventType.COOPERATION_NEGATIVE],
-            TrustDimension.SECURITY: [TrustEventType.SECURITY_VIOLATION]
+            TrustDimension.SECURITY: [TrustEventType.SECURITY_VIOLATION, TrustEventType.SUCCESSFUL_OPERATION]
         }
         
         relevant_types = dimension_mapping.get(dimension, [])
