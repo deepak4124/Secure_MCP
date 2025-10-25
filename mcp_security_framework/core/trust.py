@@ -12,7 +12,7 @@ This module provides comprehensive trust calculation including:
 import time
 import math
 import statistics
-from typing import Dict, List, Optional, Tuple, Set
+from typing import Dict, List, Optional, Tuple, Set, Any
 from dataclasses import dataclass, field
 from enum import Enum
 import numpy as np
@@ -20,6 +20,13 @@ from collections import defaultdict, deque
 import json
 
 from pydantic import BaseModel, Field
+
+# Import real models for enhanced trust calculation
+try:
+    from ..models.real_models import RealTrustModel
+    REAL_MODELS_AVAILABLE = True
+except ImportError:
+    REAL_MODELS_AVAILABLE = False
 
 
 class TrustDimension(Enum):
@@ -99,6 +106,19 @@ class TrustCalculator:
         self.min_events = min_events
         self.window_size = window_size
         self.sybil_threshold = sybil_threshold
+        
+        # Initialize real trust model if available
+        if REAL_MODELS_AVAILABLE:
+            try:
+                self.real_trust_model = RealTrustModel()
+                self.agent_interactions = {}  # Store agent interactions
+            except Exception as e:
+                print(f"Warning: Could not initialize real trust model: {e}")
+                self.real_trust_model = None
+                self.agent_interactions = {}
+        else:
+            self.real_trust_model = None
+            self.agent_interactions = {}
         
         # Trust data storage
         self.trust_events: Dict[str, deque] = defaultdict(lambda: deque(maxlen=window_size))
@@ -237,7 +257,7 @@ class TrustCalculator:
     
     def predict_trust_trend(self, agent_id: str, time_horizon: float = 3600) -> float:
         """
-        Predict trust trend for an agent
+        Predict trust trend for an agent using advanced machine learning techniques
         
         Args:
             agent_id: Agent identifier
@@ -253,32 +273,221 @@ class TrustCalculator:
         if len(events) < 3:
             return 0.0
         
-        # Calculate recent trend
-        recent_events = [e for e in events if time.time() - e.timestamp < 3600]  # Last hour
+        # Use multiple prediction methods and combine results
+        predictions = []
         
-        if len(recent_events) < 2:
+        # Method 1: Linear regression with exponential smoothing
+        linear_pred = self._predict_linear_trend(events, time_horizon)
+        predictions.append(linear_pred)
+        
+        # Method 2: Seasonal decomposition
+        seasonal_pred = self._predict_seasonal_trend(events, time_horizon)
+        predictions.append(seasonal_pred)
+        
+        # Method 3: Behavioral pattern analysis
+        behavioral_pred = self._predict_behavioral_trend(agent_id, events, time_horizon)
+        predictions.append(behavioral_pred)
+        
+        # Method 4: Network influence prediction
+        network_pred = self._predict_network_influence(agent_id, events, time_horizon)
+        predictions.append(network_pred)
+        
+        # Combine predictions using weighted average
+        weights = [0.3, 0.2, 0.3, 0.2]  # Weights for each method
+        combined_prediction = sum(p * w for p, w in zip(predictions, weights))
+        
+        return max(-1.0, min(1.0, combined_prediction))
+    
+    def _predict_linear_trend(self, events: List[TrustEvent], time_horizon: float) -> float:
+        """Predict trend using linear regression with exponential smoothing"""
+        if len(events) < 2:
             return 0.0
         
-        # Simple linear trend calculation
-        timestamps = [e.timestamp for e in recent_events]
-        values = [e.value for e in recent_events]
+        # Sort events by timestamp
+        sorted_events = sorted(events, key=lambda e: e.timestamp)
         
-        # Calculate slope
+        # Apply exponential smoothing
+        alpha = 0.3  # Smoothing factor
+        smoothed_values = []
+        smoothed_values.append(sorted_events[0].value)
+        
+        for i in range(1, len(sorted_events)):
+            smoothed = alpha * sorted_events[i].value + (1 - alpha) * smoothed_values[-1]
+            smoothed_values.append(smoothed)
+        
+        # Calculate trend using linear regression
+        timestamps = [e.timestamp for e in sorted_events]
         n = len(timestamps)
+        
+        if n < 2:
+            return 0.0
+        
         sum_x = sum(timestamps)
-        sum_y = sum(values)
-        sum_xy = sum(x * y for x, y in zip(timestamps, values))
+        sum_y = sum(smoothed_values)
+        sum_xy = sum(x * y for x, y in zip(timestamps, smoothed_values))
         sum_x2 = sum(x * x for x in timestamps)
         
-        if n * sum_x2 - sum_x * sum_x == 0:
+        denominator = n * sum_x2 - sum_x * sum_x
+        if denominator == 0:
             return 0.0
         
-        slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x * sum_x)
+        slope = (n * sum_xy - sum_x * sum_y) / denominator
         
         # Predict change over time horizon
         predicted_change = slope * time_horizon
         
-        return max(-1.0, min(1.0, predicted_change))  # Clamp to [-1, 1]
+        return max(-1.0, min(1.0, predicted_change))
+    
+    def _predict_seasonal_trend(self, events: List[TrustEvent], time_horizon: float) -> float:
+        """Predict trend considering seasonal patterns"""
+        if len(events) < 10:  # Need more data for seasonal analysis
+            return 0.0
+        
+        # Group events by time periods (e.g., hour of day, day of week)
+        hourly_patterns = defaultdict(list)
+        daily_patterns = defaultdict(list)
+        
+        for event in events:
+            event_time = time.localtime(event.timestamp)
+            hour = event_time.tm_hour
+            day = event_time.tm_wday
+            
+            hourly_patterns[hour].append(event.value)
+            daily_patterns[day].append(event.value)
+        
+        # Calculate seasonal adjustments
+        current_time = time.localtime()
+        current_hour = current_time.tm_hour
+        current_day = current_time.tm_wday
+        
+        # Get historical patterns for current time
+        hour_avg = np.mean(hourly_patterns.get(current_hour, [0.5]))
+        day_avg = np.mean(daily_patterns.get(current_day, [0.5]))
+        
+        # Calculate overall average
+        overall_avg = np.mean([event.value for event in events])
+        
+        # Seasonal adjustment factor
+        seasonal_factor = (hour_avg + day_avg) / (2 * overall_avg) - 1.0
+        
+        # Predict based on seasonal pattern
+        predicted_change = seasonal_factor * (time_horizon / 86400)  # Normalize to days
+        
+        return max(-1.0, min(1.0, predicted_change))
+    
+    def _predict_behavioral_trend(self, agent_id: str, events: List[TrustEvent], time_horizon: float) -> float:
+        """Predict trend based on behavioral patterns"""
+        if len(events) < 5:
+            return 0.0
+        
+        # Analyze behavioral patterns
+        event_types = [event.event_type for event in events]
+        event_values = [event.value for event in events]
+        
+        # Calculate pattern-based predictions
+        positive_events = [v for v in event_values if v > 0]
+        negative_events = [v for v in event_values if v < 0]
+        
+        if not positive_events and not negative_events:
+            return 0.0
+        
+        # Calculate trend based on event type patterns
+        positive_ratio = len(positive_events) / len(event_values)
+        negative_ratio = len(negative_events) / len(event_values)
+        
+        # Predict based on recent behavioral patterns
+        recent_events = events[-5:]  # Last 5 events
+        recent_positive = sum(1 for e in recent_events if e.value > 0)
+        recent_negative = sum(1 for e in recent_events if e.value < 0)
+        
+        if recent_positive + recent_negative == 0:
+            return 0.0
+        
+        recent_positive_ratio = recent_positive / (recent_positive + recent_negative)
+        
+        # Behavioral trend prediction
+        behavioral_trend = (recent_positive_ratio - positive_ratio) * 2.0
+        
+        # Scale by time horizon
+        predicted_change = behavioral_trend * (time_horizon / 3600)  # Normalize to hours
+        
+        return max(-1.0, min(1.0, predicted_change))
+    
+    def _predict_network_influence(self, agent_id: str, events: List[TrustEvent], time_horizon: float) -> float:
+        """Predict trend based on network influence"""
+        if agent_id not in self.agent_relationships:
+            return 0.0
+        
+        related_agents = self.agent_relationships[agent_id]
+        if not related_agents:
+            return 0.0
+        
+        # Get trust trends of related agents
+        related_trends = []
+        for related_agent in related_agents:
+            if related_agent in self.trust_events:
+                related_events = list(self.trust_events[related_agent])
+                if len(related_events) >= 3:
+                    # Calculate simple trend for related agent
+                    recent_avg = np.mean([e.value for e in related_events[-3:]])
+                    older_avg = np.mean([e.value for e in related_events[:-3]]) if len(related_events) > 3 else recent_avg
+                    trend = recent_avg - older_avg
+                    related_trends.append(trend)
+        
+        if not related_trends:
+            return 0.0
+        
+        # Network influence prediction (agents influence each other)
+        network_trend = np.mean(related_trends)
+        
+        # Scale by time horizon and influence strength
+        influence_strength = min(1.0, len(related_agents) / 10.0)  # Normalize by network size
+        predicted_change = network_trend * influence_strength * (time_horizon / 3600)
+        
+        return max(-1.0, min(1.0, predicted_change))
+    
+    def calculate_trust_score_with_ml(self, agent_id: str, context: Dict[str, Any]) -> float:
+        """Calculate trust score using real ML model"""
+        try:
+            if self.real_trust_model is None:
+                # Fallback to base calculation
+                return self._calculate_base_trust_score(agent_id, context)
+            
+            # Get agent interactions
+            interactions = self.agent_interactions.get(agent_id, [])
+            
+            # Use real model for trust calculation
+            real_trust_score = self.real_trust_model.calculate_trust_score(agent_id, interactions)
+            
+            # Combine with existing logic
+            base_score = self._calculate_base_trust_score(agent_id, context)
+            
+            # Weighted combination
+            final_score = (0.7 * real_trust_score) + (0.3 * base_score)
+            
+            return max(0.0, min(1.0, final_score))
+            
+        except Exception as e:
+            print(f"Trust calculation error: {e}")
+            return 0.5
+    
+    def add_interaction(self, agent_id: str, interaction: str):
+        """Add agent interaction for trust calculation"""
+        if agent_id not in self.agent_interactions:
+            self.agent_interactions[agent_id] = []
+        
+        self.agent_interactions[agent_id].append(interaction)
+        
+        # Keep only last 100 interactions
+        if len(self.agent_interactions[agent_id]) > 100:
+            self.agent_interactions[agent_id] = self.agent_interactions[agent_id][-100:]
+    
+    def _calculate_base_trust_score(self, agent_id: str, context: Dict[str, Any]) -> float:
+        """Calculate base trust score using existing logic"""
+        trust_score = self.get_trust_score(agent_id)
+        if trust_score:
+            return trust_score.overall_score
+        return 0.5
     
     def _validate_event(self, event: TrustEvent) -> bool:
         """Validate trust event"""

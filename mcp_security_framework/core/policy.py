@@ -263,7 +263,7 @@ class PolicyEngine:
         context: PolicyContext,
         additional_context: Optional[Dict[str, Any]] = None
     ) -> bool:
-        """Evaluate a policy condition"""
+        """Evaluate a policy condition with advanced features"""
         try:
             # Create evaluation context
             eval_context = {
@@ -285,13 +285,151 @@ class PolicyEngine:
             # Add helper functions
             eval_context["agent_has_capability"] = lambda cap: cap in context.agent_capabilities
             eval_context["tool_has_parameter"] = lambda param: param in context.parameters
+            eval_context["is_business_hours"] = self._is_business_hours
+            eval_context["is_weekend"] = self._is_weekend
+            eval_context["get_risk_level"] = self._get_risk_level
+            eval_context["calculate_composite_score"] = self._calculate_composite_score
+            eval_context["check_geolocation"] = self._check_geolocation
+            eval_context["validate_data_classification"] = self._validate_data_classification
+            eval_context["check_compliance_requirements"] = self._check_compliance_requirements
             
-            # Evaluate condition
+            # Add time-based functions
+            eval_context["current_hour"] = time.localtime().tm_hour
+            eval_context["current_day"] = time.localtime().tm_wday
+            eval_context["current_time"] = time.time()
+            
+            # Add mathematical functions
+            eval_context["min"] = min
+            eval_context["max"] = max
+            eval_context["abs"] = abs
+            eval_context["round"] = round
+            
+            # Evaluate condition with enhanced context
             return eval(condition, {"__builtins__": {}}, eval_context)
             
         except Exception as e:
             print(f"Error evaluating condition '{condition}': {e}")
             return False
+    
+    def _is_business_hours(self) -> bool:
+        """Check if current time is within business hours"""
+        current_time = time.localtime()
+        hour = current_time.tm_hour
+        day = current_time.tm_wday
+        
+        # Business hours: Monday-Friday, 9 AM - 5 PM
+        return 0 <= day <= 4 and 9 <= hour <= 17
+    
+    def _is_weekend(self) -> bool:
+        """Check if current time is weekend"""
+        current_time = time.localtime()
+        day = current_time.tm_wday
+        
+        # Weekend: Saturday (5) and Sunday (6)
+        return day >= 5
+    
+    def _get_risk_level(self, value: float) -> str:
+        """Convert numeric risk value to risk level"""
+        if value >= 0.8:
+            return "critical"
+        elif value >= 0.6:
+            return "high"
+        elif value >= 0.4:
+            return "medium"
+        elif value >= 0.2:
+            return "low"
+        else:
+            return "minimal"
+    
+    def _calculate_composite_score(self, scores: List[float], weights: List[float] = None) -> float:
+        """Calculate weighted composite score"""
+        if not scores:
+            return 0.0
+        
+        if weights is None:
+            weights = [1.0] * len(scores)
+        
+        if len(scores) != len(weights):
+            weights = [1.0] * len(scores)
+        
+        total_weight = sum(weights)
+        if total_weight == 0:
+            return 0.0
+        
+        weighted_sum = sum(score * weight for score, weight in zip(scores, weights))
+        return weighted_sum / total_weight
+    
+    def _check_geolocation(self, allowed_countries: List[str], user_country: str = None) -> bool:
+        """Check if user's geolocation is allowed"""
+        if not user_country:
+            return True  # Allow if no geolocation data
+        
+        return user_country.upper() in [country.upper() for country in allowed_countries]
+    
+    def _validate_data_classification(self, data_classification: str, required_level: str) -> bool:
+        """Validate data classification level"""
+        classification_levels = {
+            "public": 0,
+            "internal": 1,
+            "confidential": 2,
+            "secret": 3,
+            "top_secret": 4
+        }
+        
+        data_level = classification_levels.get(data_classification.lower(), 0)
+        required_level_num = classification_levels.get(required_level.lower(), 0)
+        
+        return data_level >= required_level_num
+    
+    def _check_compliance_requirements(self, compliance_type: str, context: Dict[str, Any]) -> bool:
+        """Check compliance requirements"""
+        if compliance_type == "gdpr":
+            return self._check_gdpr_compliance(context)
+        elif compliance_type == "hipaa":
+            return self._check_hipaa_compliance(context)
+        elif compliance_type == "sox":
+            return self._check_sox_compliance(context)
+        else:
+            return True  # Unknown compliance type, allow by default
+    
+    def _check_gdpr_compliance(self, context: Dict[str, Any]) -> bool:
+        """Check GDPR compliance requirements"""
+        # Check for data processing consent
+        has_consent = context.get("data_processing_consent", False)
+        
+        # Check for data minimization
+        data_minimization = context.get("data_minimization", True)
+        
+        # Check for purpose limitation
+        purpose_limitation = context.get("purpose_limitation", True)
+        
+        return has_consent and data_minimization and purpose_limitation
+    
+    def _check_hipaa_compliance(self, context: Dict[str, Any]) -> bool:
+        """Check HIPAA compliance requirements"""
+        # Check for PHI handling authorization
+        phi_authorization = context.get("phi_authorization", False)
+        
+        # Check for minimum necessary standard
+        minimum_necessary = context.get("minimum_necessary", True)
+        
+        # Check for audit logging
+        audit_logging = context.get("audit_logging", True)
+        
+        return phi_authorization and minimum_necessary and audit_logging
+    
+    def _check_sox_compliance(self, context: Dict[str, Any]) -> bool:
+        """Check SOX compliance requirements"""
+        # Check for financial data access authorization
+        financial_authorization = context.get("financial_authorization", False)
+        
+        # Check for segregation of duties
+        segregation_of_duties = context.get("segregation_of_duties", True)
+        
+        # Check for change management
+        change_management = context.get("change_management", True)
+        
+        return financial_authorization and segregation_of_duties and change_management
     
     def get_policy_summary(self) -> Dict[str, Any]:
         """Get summary of all policies"""

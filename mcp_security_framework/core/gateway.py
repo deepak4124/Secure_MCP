@@ -56,6 +56,36 @@ class MCPTool:
 
 
 @dataclass
+class RequestContext:
+    """Request context for MCP operations"""
+    operation: str
+    resource: str
+    agent_id: str
+    timestamp: float = None
+    metadata: Dict[str, Any] = None
+    
+    def __post_init__(self):
+        if self.timestamp is None:
+            self.timestamp = time.time()
+        if self.metadata is None:
+            self.metadata = {}
+
+@dataclass
+class ResponseContext:
+    """Response context for MCP operations"""
+    status: str
+    message: str
+    data: Dict[str, Any] = None
+    security_assessment: Dict[str, Any] = None
+    trust_score: float = None
+    threat_assessment: Dict[str, Any] = None
+    response_time: float = None
+    
+    def __post_init__(self):
+        if self.data is None:
+            self.data = {}
+
+@dataclass
 class MCPContext:
     """MCP context information"""
     context_id: str
@@ -79,17 +109,29 @@ class MCPSecurityGateway:
     - Threat detection and response
     """
     
-    def __init__(self, config_path: str = "config/security_config.yaml"):
+    def __init__(self, config_path: str = "config/security_config.yaml", 
+                 identity_manager=None, trust_calculator=None, 
+                 policy_engine=None, tool_registry=None):
         """
         Initialize MCP security gateway
         
         Args:
             config_path: Path to security configuration file
+            identity_manager: Identity manager instance
+            trust_calculator: Trust calculator instance
+            policy_engine: Policy engine instance
+            tool_registry: Tool registry instance
         """
         self.config = self._load_config(config_path)
         self.verified_tools: Dict[str, MCPTool] = {}
         self.active_contexts: Dict[str, MCPContext] = {}
         self.session = None
+        
+        # Store component references
+        self.identity_manager = identity_manager
+        self.trust_calculator = trust_calculator
+        self.policy_engine = policy_engine
+        self.tool_registry = tool_registry
         self.audit_log = []
         
         # Security settings
