@@ -4,13 +4,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Tests](https://img.shields.io/badge/tests-pytest-blue.svg)](https://pytest.org/)
-[![Performance](https://img.shields.io/badge/performance-100%25-brightgreen.svg)](benchmark/REAL_MCP_FRAMEWORK_BENCHMARK_RESULTS.md)
 
 A security framework for Model Context Protocol (MCP) in Multi-Agent Systems (MAS). This framework provides identity management, trust calculation, tool verification, and secure execution across multiple MAS frameworks including LangGraph, AutoGen, CrewAI, and Semantic Kernel.
 
 ## Executive Summary
 
-The MCP Security Framework is a fully implemented security solution that has achieved 100% success rate in comprehensive benchmarking tests. With 3,269 operations/second throughput and 2.648 MB average memory usage, it delivers enterprise-grade performance while maintaining resource efficiency.
+The MCP Security Framework is a fully implemented security solution that has achieved great success rate in comprehensive benchmarking tests. With 3,269 operations/second throughput and 2.648 MB average memory usage, it delivers enterprise-grade performance while maintaining resource efficiency.
 
 ### Key Achievements
 - **Success Rate**: All security, performance, and reliability tests passed
