@@ -4,9 +4,8 @@ Hugging Face Configuration
 
 import os
 from huggingface_hub import login
+HF_ACCESS_TOKEN = os.getenv("HUGGINGFACE_HUB_TOKEN")
 
-# Your Hugging Face access token
-HF_ACCESS_TOKEN = "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"
 
 def setup_huggingface():
     """Setup Hugging Face authentication"""
