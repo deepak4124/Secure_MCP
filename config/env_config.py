@@ -14,7 +14,7 @@ class EnvironmentConfig:
     def __init__(self):
         """Initialize environment configuration"""
         # Gemini API Configuration
-        self.GOOGLE_API_KEY = "AIzaSyByiCJd2FNGLHnIcB-w1rOd6jDAF0MV0E8"
+        self.GOOGLE_API_KEY = "enter-your-google-api-key"
         
         # MCP Server Configuration
         self.MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:3000")
