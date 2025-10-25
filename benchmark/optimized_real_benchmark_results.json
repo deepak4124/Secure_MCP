@@ -1,0 +1,162 @@
+{
+  "framework": "Our MCP Security Framework (Optimized)",
+  "timestamp": 1761390650.9456494,
+  "overall_metrics": {
+    "avg_throughput_ops_per_sec": 1589.8043194162321,
+    "avg_memory_usage_mb": 2.505859375,
+    "avg_cpu_usage_percent": 12.546,
+    "overall_success_rate": 1.0
+  },
+  "category_metrics": {
+    "performance": {
+      "success_rate": 1.0,
+      "avg_throughput": 1589.8043194162321,
+      "tests_passed": 3,
+      "total_tests": 3
+    },
+    "security": {
+      "success_rate": 1.0,
+      "tests_passed": 3,
+      "total_tests": 3
+    },
+    "reliability": {
+      "success_rate": 1.0,
+      "tests_passed": 2,
+      "total_tests": 2
+    }
+  },
+  "detailed_results": [
+    {
+      "test_name": "agent_registration_throughput_optimized",
+      "success": true,
+      "throughput": 354.5646723807123,
+      "memory_usage": 2.05078125,
+      "cpu_usage": 0,
+      "details": {
+        "total_operations": 1000,
+        "successful_operations": 1000,
+        "success_rate": 1.0
+      }
+    },
+    {
+      "test_name": "trust_calculation_performance",
+      "success": true,
+      "throughput": 85.95912175573434,
+      "memory_usage": 0,
+      "cpu_usage": 0,
+      "details": {
+        "total_operations": 100,
+        "successful_operations": 100,
+        "success_rate": 1.0
+      }
+    },
+    {
+      "test_name": "policy_evaluation_performance",
+      "success": true,
+      "throughput": 4328.88916411225,
+      "memory_usage": 0,
+      "cpu_usage": 0,
+      "details": {
+        "total_operations": 100,
+        "successful_operations": 100,
+        "success_rate": 1.0
+      }
+    },
+    {
+      "test_name": "memory_usage",
+      "success": true,
+      "throughput": 0,
+      "memory_usage": 2.9609375,
+      "cpu_usage": 0,
+      "details": {
+        "initial_memory_mb": 66.08203125,
+        "final_memory_mb": 69.04296875,
+        "agents_registered": 2000
+      }
+    },
+    {
+      "test_name": "cpu_usage",
+      "success": true,
+      "throughput": 0,
+      "memory_usage": 0,
+      "cpu_usage": 12.546,
+      "details": {
+        "average_cpu_percent": 12.546,
+        "max_cpu_percent": 99.3,
+        "samples_taken": 50
+      }
+    },
+    {
+      "test_name": "authentication",
+      "success": true,
+      "throughput": 0,
+      "memory_usage": 0,
+      "cpu_usage": 0,
+      "details": {
+        "total_tests": 10,
+        "successful_tests": 10,
+        "success_rate": 1.0
+      }
+    },
+    {
+      "test_name": "authorization",
+      "success": true,
+      "throughput": 0,
+      "memory_usage": 0,
+      "cpu_usage": 0,
+      "details": {
+        "total_tests": 10,
+        "successful_tests": 10,
+        "success_rate": 1.0
+      }
+    },
+    {
+      "test_name": "trust_based_security",
+      "success": true,
+      "throughput": 0,
+      "memory_usage": 0,
+      "cpu_usage": 0,
+      "details": {
+        "total_tests": 10,
+        "successful_tests": 10,
+        "success_rate": 1.0
+      }
+    },
+    {
+      "test_name": "error_handling",
+      "success": true,
+      "throughput": 0,
+      "memory_usage": 0,
+      "cpu_usage": 0,
+      "details": {
+        "total_tests": 10,
+        "successful_tests": 10,
+        "success_rate": 1.0
+      }
+    },
+    {
+      "test_name": "concurrent_operations",
+      "success": true,
+      "throughput": 0,
+      "memory_usage": 0,
+      "cpu_usage": 0,
+      "details": {
+        "total_operations": 20,
+        "successful_operations": 20,
+        "success_rate": 1.0
+      }
+    },
+    {
+      "test_name": "end_to_end_workflow",
+      "success": true,
+      "throughput": 0,
+      "memory_usage": 0,
+      "cpu_usage": 0,
+      "details": {
+        "total_tests": 5,
+        "successful_tests": 5,
+        "success_rate": 1.0
+      }
+    }
+  ]
+}
