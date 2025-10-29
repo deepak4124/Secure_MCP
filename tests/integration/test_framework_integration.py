@@ -713,3 +713,4 @@ class TestRealGatewayIntegration:
         assert initial_metrics["threat_detection_rate"] == 1.0  # 0/0 = 1.0 (edge case)
         assert initial_metrics["throughput"] == 0
 
+

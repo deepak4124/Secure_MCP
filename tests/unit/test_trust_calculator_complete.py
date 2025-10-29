@@ -674,3 +674,4 @@ class TestTrustCalculatorComplete:
         for measurement in memory_measurements:
             print(f"   Load {measurement['load']}: {measurement['memory_mb']:.2f}MB")
 
+

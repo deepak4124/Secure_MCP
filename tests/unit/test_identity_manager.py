@@ -340,3 +340,4 @@ class TestIdentityManager:
         assert latest_log["action"] == "register_agent"
         assert latest_log["agent_id"] == self.test_agent_id
 
+

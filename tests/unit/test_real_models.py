@@ -328,3 +328,4 @@ class TestRealModelsIntegration:
             assert threat_result['threat_level'] == 'safe'  # Default fallback
             assert threat_result['is_threat'] is False
 
+

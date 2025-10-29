@@ -340,3 +340,4 @@ class TestTrustCalculator:
         assert stored_interactions[0] == "interaction_5"  # First 5 should be removed
         assert stored_interactions[-1] == "interaction_104"  # Last should be kept
 
+

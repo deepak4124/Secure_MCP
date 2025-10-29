@@ -578,3 +578,4 @@ class TestIdentityManagerComplete:
         print(f"   Audit trail tests: {security_metrics['audit_trail_tests']}")
         print(f"   Security violations: {security_metrics['security_violations']}")
 
+

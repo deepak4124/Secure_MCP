@@ -417,3 +417,4 @@ class TestBenchmarkingIntegration:
         assert isinstance(report["trust_metrics"], dict)
         assert isinstance(report["recommendations"], list)
 
+
