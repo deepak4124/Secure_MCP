@@ -24,7 +24,7 @@ __license__ = "MIT"
 
 # Core framework imports
 from .core.identity import IdentityManager, AgentType, IdentityStatus
-from .core.trust import TrustCalculator, TrustEvent, TrustEventType
+from .core.trust import TrustCalculator, TrustEvent
 from .core.gateway import MCPSecurityGateway, MCPTool, MCPToolStatus, MCPToolRisk
 from .core.policy import PolicyEngine, AccessPolicy, PolicyDecision
 from .core.registry import ToolRegistry, ToolManifest, ToolAttestation
@@ -57,7 +57,6 @@ __all__ = [
     "IdentityStatus",
     "TrustCalculator",
     "TrustEvent",
-    "TrustEventType",
     "MCPSecurityGateway",
     "MCPTool",
     "MCPToolStatus", 

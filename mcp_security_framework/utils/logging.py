@@ -27,6 +27,10 @@ class SecurityAuditLogger:
         """
         self.log_file = log_file
         self.logger = self._setup_audit_logger()
+        self.trace_callback = None
+        
+    def set_trace_callback(self, callback):
+        self.trace_callback = callback
     
     def _setup_audit_logger(self) -> logging.Logger:
         """Setup audit logger"""
@@ -80,6 +84,8 @@ class SecurityAuditLogger:
         }
         
         self.logger.info(json.dumps(log_entry))
+        if self.trace_callback:
+            self.trace_callback(log_entry)
     
     def log_authentication(
         self,

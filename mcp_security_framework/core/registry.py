@@ -64,6 +64,7 @@ class ToolManifest:
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
     status: ToolStatus = ToolStatus.REGISTERED
+    fingerprint: Optional[str] = None
 
 
 class ToolRegistry:
@@ -143,12 +144,46 @@ class ToolRegistry:
         manifest.status = ToolStatus.REGISTERED
         manifest.created_at = time.time()
         manifest.updated_at = time.time()
+        manifest.fingerprint = self._compute_metadata_fingerprint({
+            "name": manifest.name,
+            "description": manifest.description,
+            "parameters": manifest.parameters
+        })
         
         # Store tool
         self.tools[manifest.tool_id] = manifest
         self.attestations[manifest.tool_id] = []
         
         return True, "Tool registered successfully"
+
+    def verify_tool_runtime_metadata(
+        self,
+        tool_id: str,
+        runtime_metadata: Dict[str, Any]
+    ) -> Tuple[bool, str]:
+        """Verify runtime tool metadata against the registered manifest."""
+        manifest = self.tools.get(tool_id)
+        if not manifest:
+            return False, "tool_not_registered"
+
+        if not manifest.fingerprint:
+            return False, "manifest_fingerprint_missing"
+
+        runtime_fingerprint = self._compute_metadata_fingerprint(runtime_metadata)
+        if runtime_fingerprint != manifest.fingerprint:
+            return False, "tool_metadata_drift"
+
+        return True, "ok"
+
+    def _compute_metadata_fingerprint(self, metadata: Dict[str, Any]) -> str:
+        """Compute a stable fingerprint for tool metadata."""
+        normalized = {
+            "name": metadata.get("name", ""),
+            "description": metadata.get("description", ""),
+            "parameters": metadata.get("parameters", {})
+        }
+        payload = json.dumps(normalized, sort_keys=True)
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
     
     def verify_tool(self, tool_id: str, verification_context: Optional[Dict[str, Any]] = None) -> Tuple[bool, str]:
         """

@@ -567,6 +567,36 @@ class MCPSecurityGateway:
         }
         
         self.audit_log.append(log_entry)
+        
+    async def process_request(self, agent_id: str, request: RequestContext) -> ResponseContext:
+        """
+        Process an MCP request
+        
+        Args:
+            agent_id: Agent identifier
+            request: Request context
+            
+        Returns:
+            Response context
+        """
+        if request.operation == "execute_tool":
+            tool_id = request.resource
+            result = await self.execute_tool(
+                tool_id=tool_id,
+                parameters=request.metadata.get("parameters", {}),
+                agent_id=agent_id,
+                context_id=request.metadata.get("context_id")
+            )
+            return ResponseContext(
+                status="success" if result.get("success") else "error",
+                message=result.get("error", "Execution successful"),
+                data=result
+            )
+            
+        return ResponseContext(
+            status="error",
+            message=f"Unsupported operation: {request.operation}"
+        )
     
     def get_verified_tools(self) -> List[MCPTool]:
         """Get list of verified tools"""

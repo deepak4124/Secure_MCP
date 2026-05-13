@@ -1,50 +1,35 @@
 """
 Identity Management System for MCP Security Framework
 
-This module provides comprehensive identity management including:
-- Agent registration and verification
-- Certificate-based authentication
-- Identity revocation and recovery
-- Zero-knowledge identity proofs
+This module provides identity management focused on OAuth 2.1 / JWT tokens.
 """
 
-import hashlib
-import secrets
 import time
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass
-from enum import Enum
 import json
 import base64
-
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.backends import default_backend
-from pydantic import BaseModel, Field
-
+import hmac
+import hashlib
+from typing import Dict, List, Optional, Tuple, Any
+from dataclasses import dataclass
+from enum import Enum
 
 class IdentityStatus(Enum):
-    """Identity status enumeration"""
     ACTIVE = "active"
     SUSPENDED = "suspended"
     REVOKED = "revoked"
     PENDING = "pending"
 
-
 class AgentType(Enum):
-    """Agent type enumeration"""
     WORKER = "worker"
     COORDINATOR = "coordinator"
     MONITOR = "monitor"
     GATEWAY = "gateway"
 
-
 @dataclass
 class AgentIdentity:
     """Agent identity data structure"""
     agent_id: str
-    public_key: bytes
-    certificate: bytes
+    client_id: str
     agent_type: AgentType
     capabilities: List[str]
     trust_score: float
@@ -54,406 +39,206 @@ class AgentIdentity:
     metadata: Dict[str, str]
 
 
-class IdentityProof(BaseModel):
-    """Zero-knowledge identity proof"""
-    proof_data: str = Field(..., description="Base64 encoded proof data")
-    challenge: str = Field(..., description="Challenge used for proof generation")
-    timestamp: float = Field(..., description="Proof generation timestamp")
-    nonce: str = Field(..., description="Random nonce for replay protection")
-
+@dataclass
+class TokenValidationResult:
+    """Structured result for access token validation."""
+    valid: bool
+    agent_id: Optional[str]
+    reason: str
+    claims: Optional[Dict[str, Any]] = None
 
 class IdentityManager:
     """
-    Comprehensive identity management system for multi-agent networks
-    
-    Features:
-    - Agent registration and verification
-    - Certificate-based authentication
-    - Identity revocation and recovery
-    - Zero-knowledge identity proofs
-    - Sybil attack prevention
+    Identity management system for enterprise MCP networks using standard OAuth patterns.
     """
     
-    def __init__(self, ca_private_key: Optional[bytes] = None):
-        """
-        Initialize identity manager
-        
-        Args:
-            ca_private_key: Certificate Authority private key (generated if None)
-        """
+    def __init__(self, oauth_config: Optional[Dict[str, Any]] = None):
         self.identities: Dict[str, AgentIdentity] = {}
-        self.revoked_identities: set = set()
-        self.identity_proofs: Dict[str, IdentityProof] = {}
+        self.revoked_tokens: set = set()
+        self.oauth_config = oauth_config or {}
         
-        # Initialize Certificate Authority
-        if ca_private_key:
-            self.ca_private_key = serialization.load_pem_private_key(
-                ca_private_key, password=None, backend=default_backend()
-            )
-        else:
-            self.ca_private_key = rsa.generate_private_key(
-                public_exponent=65537,
-                key_size=2048,
-                backend=default_backend()
-            )
-        
-        self.ca_public_key = self.ca_private_key.public_key()
-        
-        # Generate CA certificate
-        self.ca_certificate = self._generate_ca_certificate()
-    
     def register_agent(
         self,
         agent_id: str,
-        public_key: bytes,
+        client_id: str,
         agent_type: AgentType,
         capabilities: List[str],
         metadata: Optional[Dict[str, str]] = None
     ) -> Tuple[bool, str]:
-        """
-        Register a new agent in the system
-        
-        Args:
-            agent_id: Unique agent identifier
-            public_key: Agent's public key
-            agent_type: Type of agent
-            capabilities: List of agent capabilities
-            metadata: Optional metadata
-            
-        Returns:
-            Tuple of (success, message)
-        """
-        # Validate agent ID uniqueness
+        """Register a new agent in the system"""
         if agent_id in self.identities:
             return False, "Agent ID already exists"
-        
-        if agent_id in self.revoked_identities:
-            return False, "Agent ID is revoked"
-        
-        # Validate public key
-        try:
-            serialization.load_pem_public_key(public_key, backend=default_backend())
-        except Exception:
-            return False, "Invalid public key format"
-        
-        # Generate certificate
-        certificate = self._generate_agent_certificate(agent_id, public_key)
-        
-        # Create agent identity
+            
         identity = AgentIdentity(
             agent_id=agent_id,
-            public_key=public_key,
-            certificate=certificate,
+            client_id=client_id,
             agent_type=agent_type,
             capabilities=capabilities,
-            trust_score=0.5,  # Initial trust score
-            status=IdentityStatus.PENDING,
+            trust_score=0.5,
+            status=IdentityStatus.ACTIVE,
             created_at=time.time(),
             last_seen=time.time(),
             metadata=metadata or {}
         )
-        
         self.identities[agent_id] = identity
-        
         return True, "Agent registered successfully"
-    
-    def verify_agent_identity(self, agent_id: str, signature: bytes, message: bytes) -> bool:
+        
+    def verify_token(self, token: str) -> Tuple[bool, Optional[str]]:
         """
-        Verify agent identity using digital signature
-        
-        Args:
-            agent_id: Agent identifier
-            signature: Digital signature
-            message: Original message
-            
-        Returns:
-            True if verification successful
+        Verify a JWT/OAuth token (Stubbed for enterprise integration).
+        In a real implementation, this would validate the signature against an IdP's JWKS,
+        check expiration, issuer, audience, and scopes.
         """
-        if agent_id not in self.identities:
-            return False
-        
-        identity = self.identities[agent_id]
-        
-        if identity.status != IdentityStatus.ACTIVE:
-            return False
-        
-        try:
-            public_key = serialization.load_pem_public_key(
-                identity.public_key, backend=default_backend()
-            )
+        if not token or token in self.revoked_tokens:
+            return False, None
             
-            public_key.verify(
-                signature,
-                message,
-                padding.PSS(
-                    mgf=padding.MGF1(hashes.SHA256()),
-                    salt_length=padding.PSS.MAX_LENGTH
-                ),
-                hashes.SHA256()
-            )
-            
-            # Update last seen
-            identity.last_seen = time.time()
+        # Stub: assuming token format is "agentId.signature"
+        parts = token.split(".")
+        if len(parts) >= 1:
+            agent_id = parts[0]
+            if agent_id in self.identities and self.identities[agent_id].status == IdentityStatus.ACTIVE:
+                self.identities[agent_id].last_seen = time.time()
+                return True, agent_id
+        return False, None
+
+    def validate_access_token(
+        self,
+        token: str,
+        expected_audience: Optional[str] = None,
+        expected_issuer: Optional[str] = None,
+        required_scopes: Optional[List[str]] = None,
+        resource: Optional[str] = None
+    ) -> TokenValidationResult:
+        """
+        Validate an OAuth 2.1 access token for resource-server use.
+
+        This supports HS256 JWTs when a shared secret is provided in config.
+        If strict mode is enabled and validation cannot be performed, validation fails.
+        """
+        if not token:
+            return TokenValidationResult(False, None, "missing_token")
+
+        if token in self.revoked_tokens:
+            return TokenValidationResult(False, None, "token_revoked")
+
+        strict = bool(self.oauth_config.get("strict", False))
+        allow_unsigned = bool(self.oauth_config.get("allow_unsigned_jwt", False))
+
+        jwt_parts = token.split(".")
+        if len(jwt_parts) == 3:
+            parsed = self._parse_jwt(token)
+            if not parsed:
+                return TokenValidationResult(False, None, "jwt_parse_failed")
+
+            header, claims, signing_input, signature = parsed
+            alg = header.get("alg")
+            if alg != "HS256":
+                if strict:
+                    return TokenValidationResult(False, None, "unsupported_alg")
+            else:
+                secret = self.oauth_config.get("shared_secret")
+                if not secret:
+                    if strict and not allow_unsigned:
+                        return TokenValidationResult(False, None, "missing_shared_secret")
+                else:
+                    if not self._verify_hs256(signing_input, signature, secret):
+                        return TokenValidationResult(False, None, "signature_invalid")
+
+            now = int(time.time())
+            exp = claims.get("exp")
+            nbf = claims.get("nbf")
+            if exp is not None and now >= int(exp):
+                return TokenValidationResult(False, None, "token_expired", claims)
+            if nbf is not None and now < int(nbf):
+                return TokenValidationResult(False, None, "token_not_yet_valid", claims)
+
+            if expected_issuer and claims.get("iss") != expected_issuer:
+                return TokenValidationResult(False, None, "issuer_mismatch", claims)
+
+            if expected_audience:
+                aud = claims.get("aud")
+                if isinstance(aud, list):
+                    if expected_audience not in aud:
+                        return TokenValidationResult(False, None, "audience_mismatch", claims)
+                elif aud != expected_audience:
+                    return TokenValidationResult(False, None, "audience_mismatch", claims)
+
+            if resource:
+                resource_claim = claims.get("resource") or claims.get("aud")
+                if isinstance(resource_claim, list):
+                    if resource not in resource_claim:
+                        return TokenValidationResult(False, None, "resource_mismatch", claims)
+                elif resource_claim and resource_claim != resource:
+                    return TokenValidationResult(False, None, "resource_mismatch", claims)
+
+            if required_scopes:
+                scope_claim = claims.get("scope") or claims.get("scp") or ""
+                if isinstance(scope_claim, list):
+                    scopes = set(scope_claim)
+                else:
+                    scopes = set(scope_claim.split()) if scope_claim else set()
+                if not set(required_scopes).issubset(scopes):
+                    return TokenValidationResult(False, None, "insufficient_scope", claims)
+
+            agent_id = claims.get("sub") or claims.get("client_id") or claims.get("agent_id")
+            return TokenValidationResult(True, agent_id, "ok", claims)
+
+        if strict:
+            return TokenValidationResult(False, None, "non_jwt_token_rejected")
+
+        ok, agent_id = self.verify_token(token)
+        return TokenValidationResult(ok, agent_id, "stub_token" if ok else "invalid_stub_token")
+
+    def revoke_token(self, token: str) -> bool:
+        self.revoked_tokens.add(token)
+        return True
+        
+    def revoke_identity(self, agent_id: str) -> bool:
+        if agent_id in self.identities:
+            self.identities[agent_id].status = IdentityStatus.REVOKED
             return True
-            
-        except Exception:
-            return False
-    
-    def generate_identity_proof(self, agent_id: str) -> Optional[IdentityProof]:
-        """
-        Generate zero-knowledge identity proof
-        
-        Args:
-            agent_id: Agent identifier
-            
-        Returns:
-            Identity proof or None if agent not found
-        """
-        if agent_id not in self.identities:
-            return None
-        
-        identity = self.identities[agent_id]
-        
-        if identity.status != IdentityStatus.ACTIVE:
-            return None
-        
-        # Generate challenge
-        challenge = secrets.token_hex(32)
-        
-        # Generate proof data (simplified zero-knowledge proof)
-        proof_data = self._generate_zk_proof(agent_id, challenge)
-        
-        proof = IdentityProof(
-            proof_data=base64.b64encode(proof_data).decode(),
-            challenge=challenge,
-            timestamp=time.time(),
-            nonce=secrets.token_hex(16)
-        )
-        
-        self.identity_proofs[agent_id] = proof
-        return proof
-    
-    def verify_identity_proof(self, agent_id: str, proof: IdentityProof) -> bool:
-        """
-        Verify zero-knowledge identity proof
-        
-        Args:
-            agent_id: Agent identifier
-            proof: Identity proof to verify
-            
-        Returns:
-            True if proof is valid
-        """
-        if agent_id not in self.identities:
-            return False
-        
-        # Check if proof exists
-        if agent_id not in self.identity_proofs:
-            return False
-        
-        stored_proof = self.identity_proofs[agent_id]
-        
-        # Verify proof data
-        try:
-            proof_data = base64.b64decode(proof.proof_data)
-            return self._verify_zk_proof(agent_id, proof.challenge, proof_data)
-        except Exception:
-            return False
-    
-    def revoke_identity(self, agent_id: str, reason: str = "") -> bool:
-        """
-        Revoke agent identity
-        
-        Args:
-            agent_id: Agent identifier
-            reason: Reason for revocation
-            
-        Returns:
-            True if revocation successful
-        """
-        if agent_id not in self.identities:
-            return False
-        
-        # Update identity status
-        self.identities[agent_id].status = IdentityStatus.REVOKED
-        
-        # Add to revoked list
-        self.revoked_identities.add(agent_id)
-        
-        # Remove from active proofs
-        if agent_id in self.identity_proofs:
-            del self.identity_proofs[agent_id]
-        
-        return True
-    
-    def suspend_identity(self, agent_id: str, reason: str = "") -> bool:
-        """
-        Suspend agent identity
-        
-        Args:
-            agent_id: Agent identifier
-            reason: Reason for suspension
-            
-        Returns:
-            True if suspension successful
-        """
-        if agent_id not in self.identities:
-            return False
-        
-        self.identities[agent_id].status = IdentityStatus.SUSPENDED
-        return True
-    
-    def activate_identity(self, agent_id: str) -> bool:
-        """
-        Activate agent identity
-        
-        Args:
-            agent_id: Agent identifier
-            
-        Returns:
-            True if activation successful
-        """
-        if agent_id not in self.identities:
-            return False
-        
-        self.identities[agent_id].status = IdentityStatus.ACTIVE
-        return True
-    
+        return False
+
     def get_agent_identity(self, agent_id: str) -> Optional[AgentIdentity]:
-        """
-        Get agent identity information
-        
-        Args:
-            agent_id: Agent identifier
-            
-        Returns:
-            Agent identity or None if not found
-        """
         return self.identities.get(agent_id)
-    
-    def list_active_agents(self) -> List[AgentIdentity]:
-        """
-        List all active agents
         
-        Returns:
-            List of active agent identities
-        """
-        return [
-            identity for identity in self.identities.values()
-            if identity.status == IdentityStatus.ACTIVE
-        ]
-    
     def update_trust_score(self, agent_id: str, new_score: float) -> bool:
-        """
-        Update agent trust score
-        
-        Args:
-            agent_id: Agent identifier
-            new_score: New trust score (0.0 to 1.0)
-            
-        Returns:
-            True if update successful
-        """
-        if agent_id not in self.identities:
-            return False
-        
-        if not 0.0 <= new_score <= 1.0:
-            return False
-        
-        self.identities[agent_id].trust_score = new_score
-        return True
-    
-    def _generate_ca_certificate(self) -> bytes:
-        """Generate Certificate Authority certificate"""
-        # Simplified certificate generation
-        # In production, use proper X.509 certificate generation
-        cert_data = {
-            "issuer": "MCP-Security-Framework-CA",
-            "subject": "MCP-Security-Framework-CA",
-            "public_key": self.ca_public_key.public_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PublicFormat.SubjectPublicKeyInfo
-            ).decode(),
-            "valid_from": time.time(),
-            "valid_to": time.time() + (365 * 24 * 60 * 60),  # 1 year
-            "serial_number": secrets.randbits(64)
-        }
-        
-        return json.dumps(cert_data).encode()
-    
-    def _generate_agent_certificate(self, agent_id: str, public_key: bytes) -> bytes:
-        """Generate agent certificate"""
-        cert_data = {
-            "issuer": "MCP-Security-Framework-CA",
-            "subject": agent_id,
-            "public_key": public_key.decode(),
-            "valid_from": time.time(),
-            "valid_to": time.time() + (365 * 24 * 60 * 60),  # 1 year
-            "serial_number": secrets.randbits(64)
-        }
-        
-        # Sign certificate with CA private key
-        cert_json = json.dumps(cert_data)
-        signature = self.ca_private_key.sign(
-            cert_json.encode(),
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA256()
-        )
-        
-        cert_data["signature"] = base64.b64encode(signature).decode()
-        
-        return json.dumps(cert_data).encode()
-    
-    def _generate_zk_proof(self, agent_id: str, challenge: str) -> bytes:
-        """Generate simplified zero-knowledge proof"""
-        # Simplified ZK proof implementation
-        # In production, use proper zero-knowledge proof protocols
-        
-        identity = self.identities[agent_id]
-        
-        # Create proof data
-        proof_data = {
-            "agent_id": agent_id,
-            "challenge": challenge,
-            "timestamp": time.time(),
-            "public_key_hash": hashlib.sha256(identity.public_key).hexdigest(),
-            "certificate_hash": hashlib.sha256(identity.certificate).hexdigest()
-        }
-        
-        return json.dumps(proof_data).encode()
-    
-    def _verify_zk_proof(self, agent_id: str, challenge: str, proof_data: bytes) -> bool:
-        """Verify simplified zero-knowledge proof"""
-        try:
-            proof = json.loads(proof_data.decode())
-            
-            # Verify challenge matches
-            if proof["challenge"] != challenge:
-                return False
-            
-            # Verify agent ID matches
-            if proof["agent_id"] != agent_id:
-                return False
-            
-            # Verify timestamp is recent (within 5 minutes)
-            if time.time() - proof["timestamp"] > 300:
-                return False
-            
-            # Verify public key hash
-            identity = self.identities[agent_id]
-            expected_hash = hashlib.sha256(identity.public_key).hexdigest()
-            if proof["public_key_hash"] != expected_hash:
-                return False
-            
-            # Verify certificate hash
-            expected_cert_hash = hashlib.sha256(identity.certificate).hexdigest()
-            if proof["certificate_hash"] != expected_cert_hash:
-                return False
-            
+        if agent_id in self.identities and 0.0 <= new_score <= 1.0:
+            self.identities[agent_id].trust_score = new_score
             return True
-            
+        return False
+
+    def _parse_jwt(self, token: str) -> Optional[Tuple[Dict[str, Any], Dict[str, Any], bytes, bytes]]:
+        try:
+            header_b64, claims_b64, signature_b64 = token.split(".")
+            header = self._b64url_json_decode(header_b64)
+            claims = self._b64url_json_decode(claims_b64)
+            if header is None or claims is None:
+                return None
+            signing_input = f"{header_b64}.{claims_b64}".encode()
+            signature = self._b64url_decode(signature_b64)
+            return header, claims, signing_input, signature
         except Exception:
+            return None
+
+    def _b64url_json_decode(self, value: str) -> Optional[Dict[str, Any]]:
+        decoded = self._b64url_decode(value)
+        if decoded is None:
+            return None
+        try:
+            return json.loads(decoded.decode("utf-8"))
+        except Exception:
+            return None
+
+    def _b64url_decode(self, value: str) -> Optional[bytes]:
+        try:
+            padding = "=" * (-len(value) % 4)
+            return base64.urlsafe_b64decode(value + padding)
+        except Exception:
+            return None
+
+    def _verify_hs256(self, signing_input: bytes, signature: bytes, secret: str) -> bool:
+        if not signature:
             return False
+        computed = hmac.new(secret.encode("utf-8"), signing_input, hashlib.sha256).digest()
+        return hmac.compare_digest(computed, signature)

@@ -125,6 +125,19 @@ performance:
 
 # Security Configuration
 security:
+  oauth:
+    strict: false
+    allow_unsigned_jwt: false
+    expected_issuer: ""
+    expected_audience: ""
+    resource: ""
+    required_scopes: []
+    shared_secret: ""
+
+  sanitization:
+    block_on_redaction: false
+    max_redactions: 0
+
   rate_limiting:
     enabled: true
     max_requests_per_minute: 100

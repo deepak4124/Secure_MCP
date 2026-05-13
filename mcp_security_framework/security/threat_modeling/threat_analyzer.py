@@ -13,16 +13,12 @@ This module provides comprehensive threat modeling capabilities including:
 
 import time
 import uuid
-from typing import Dict, List, Optional, Set, Tuple, Any, Union
+from typing import Dict, List, Any
 from dataclasses import dataclass, field
 from enum import Enum
 import json
-from collections import defaultdict, deque
-import networkx as nx
+from collections import defaultdict
 import numpy as np
-from scipy import stats
-
-from pydantic import BaseModel, Field
 
 
 class ThreatCategory(Enum):

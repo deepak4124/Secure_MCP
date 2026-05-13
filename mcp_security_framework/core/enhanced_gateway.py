@@ -1,56 +1,30 @@
 """
 Enhanced MCP Security Gateway
 
-This module provides an enhanced security gateway that integrates advanced security
-features including Dynamic Trust Allocation, MAESTRO Multi-Layer Security, and
-Advanced Behavioral Analysis.
+Provides inference-time security including context sanitization
+and toolchain anomaly detection.
 """
 
 import time
-import asyncio
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field
-from enum import Enum
 import logging
-
-from pydantic import BaseModel, Field
+from typing import Dict, List, Optional, Any, Tuple
 
 from .gateway import MCPSecurityGateway, RequestContext, ResponseContext
 from .identity import IdentityManager
 from .trust import TrustCalculator
-from .policy import PolicyEngine
+from .policy import PolicyEngine, PolicyContext, PolicyDecision
 from .registry import ToolRegistry
 
-# Import advanced security components
-from ..security.advanced.dynamic_trust_manager import DynamicTrustManager
-from ..security.advanced.maestro_layer_security import MAESTROLayerSecurity
-from ..security.advanced.advanced_behavioral_analysis import AdvancedBehavioralAnalysis
-
-
-class SecurityLevel(Enum):
-    """Security level enumeration"""
-    MINIMAL = "minimal"
-    STANDARD = "standard"
-    ENHANCED = "enhanced"
-    MAXIMUM = "maximum"
-
-
-@dataclass
-class SecurityAssessment:
-    """Security assessment result"""
-    overall_score: float
-    details: str
-    threats_detected: List[str] = field(default_factory=list)
-    recommendations: List[str] = field(default_factory=list)
-    risk_level: str = "low"
+from ..security.sanitization import PayloadSanitizer
+from ..security.advanced.advanced_behavioral_analysis import InferenceSafetyAnalyzer
 
 
 class EnhancedMCPSecurityGateway(MCPSecurityGateway):
     """
-    Enhanced MCP Security Gateway with advanced security features
+    Enterprise-ready Security Gateway.
     
-    Integrates Dynamic Trust Allocation, MAESTRO Multi-Layer Security,
-    and Advanced Behavioral Analysis for comprehensive security.
+    Integrates Payload Sanitization and Inference Safety Analysis
+    to protect against indirect prompt injections and parasitic toolchains.
     """
     
     def __init__(
@@ -59,26 +33,8 @@ class EnhancedMCPSecurityGateway(MCPSecurityGateway):
         trust_calculator: TrustCalculator = None,
         policy_engine: PolicyEngine = None,
         tool_registry: ToolRegistry = None,
-        security_level: SecurityLevel = SecurityLevel.STANDARD,
-        enable_dynamic_trust: bool = False,
-        enable_maestro_security: bool = False,
-        enable_behavioral_analysis: bool = False,
         **kwargs
     ):
-        """
-        Initialize enhanced security gateway
-        
-        Args:
-            identity_manager: Identity manager instance
-            trust_calculator: Trust calculator instance
-            policy_engine: Policy engine instance
-            tool_registry: Tool registry instance
-            security_level: Security level configuration
-            enable_dynamic_trust: Enable dynamic trust allocation
-            enable_maestro_security: Enable MAESTRO multi-layer security
-            enable_behavioral_analysis: Enable advanced behavioral analysis
-            **kwargs: Additional arguments
-        """
         super().__init__(
             identity_manager=identity_manager,
             trust_calculator=trust_calculator,
@@ -87,456 +43,209 @@ class EnhancedMCPSecurityGateway(MCPSecurityGateway):
             **kwargs
         )
         
-        self.security_level = security_level
-        self.enable_dynamic_trust = enable_dynamic_trust
-        self.enable_maestro_security = enable_maestro_security
-        self.enable_behavioral_analysis = enable_behavioral_analysis
-        
-        # Initialize advanced security components
-        self.dynamic_trust_manager = DynamicTrustManager() if enable_dynamic_trust else None
-        self.maestro_security = MAESTROLayerSecurity() if enable_maestro_security else None
-        self.behavioral_analyzer = AdvancedBehavioralAnalysis() if enable_behavioral_analysis else None
-        
-        # Setup logging
+        self.sanitizer = PayloadSanitizer()
+        self.inference_analyzer = InferenceSafetyAnalyzer()
         self.logger = logging.getLogger(__name__)
+        self.oauth_config = self._load_oauth_config()
+        self.sanitization_config = self._load_sanitization_config()
+        if self.identity_manager and hasattr(self.identity_manager, "oauth_config"):
+            if not self.identity_manager.oauth_config:
+                self.identity_manager.oauth_config = self.oauth_config
         
-        # Security statistics
-        self.security_stats = {
-            "requests_processed": 0,
-            "threats_detected": 0,
-            "security_violations": 0,
-            "trust_adjustments": 0
-        }
-    
     async def process_request(self, agent_id: str, request: RequestContext) -> ResponseContext:
         """
-        Process request with enhanced security features
-        
-        Args:
-            agent_id: Agent ID
-            request: Request context
-            
-        Returns:
-            Response context with security assessment
+        Process request with sanitization and safety analysis.
         """
-        start_time = time.time()
-        self.security_stats["requests_processed"] += 1
-        
         try:
-            # Perform enhanced security checks
-            security_assessment = await self._perform_enhanced_security_checks(
-                agent_id, request
-            )
-            
-            # Check if request should be blocked
-            if security_assessment.risk_level == "critical":
-                self.security_stats["security_violations"] += 1
+            # 0. Strict OAuth 2.1 validation (resource server)
+            auth_required = bool(self.config.get("identity_management", {}).get("require_authentication", True))
+            if auth_required:
+                token = request.metadata.get("auth_token") if request.metadata else None
+                token_result = self._validate_oauth_token(token, request)
+                if not token_result[0]:
+                    return ResponseContext(
+                        status="blocked",
+                        message=f"Request blocked: {token_result[1]}",
+                        security_assessment={"reason": token_result[1]}
+                    )
+                if token_result[2] and token_result[2] != agent_id:
+                    return ResponseContext(
+                        status="blocked",
+                        message="Request blocked: agent_id token mismatch",
+                        security_assessment={"reason": "agent_id_mismatch"}
+                    )
+
+            # 1. Sanitize incoming parameters to prevent indirect prompt injection
+            if request.metadata and "parameters" in request.metadata:
+                sanitized = self.sanitizer.sanitize_payload_with_report(
+                    request.metadata["parameters"]
+                )
+                request.metadata["parameters"] = sanitized["payload"]
+                if self._should_block_sanitization(sanitized):
+                    return ResponseContext(
+                        status="blocked",
+                        message="Request blocked due to prompt injection indicators",
+                        security_assessment={
+                            "reason": "prompt_injection_indicators",
+                            "redactions": sanitized["redactions"],
+                            "matches": sanitized["matches"]
+                        }
+                    )
+                
+            # 2. Check for parasitic toolchains and inference anomalies
+            tool_id = request.resource
+
+            # 1b. Tool manifest integrity check (poisoning defense)
+            integrity_ok, integrity_reason = self._verify_tool_manifest_integrity(tool_id)
+            if not integrity_ok:
                 return ResponseContext(
                     status="blocked",
-                    message="Request blocked due to security concerns",
-                    security_assessment=security_assessment
+                    message="Request blocked due to tool metadata integrity failure",
+                    security_assessment={"reason": integrity_reason}
                 )
             
-            # Process request through base gateway
+            # Basic risk classification stub
+            risk_level = self._resolve_tool_risk_level(tool_id)
+                
+            is_safe, reason = self.inference_analyzer.check_safety(agent_id, tool_id, risk_level)
+            
+            if not is_safe:
+                self.logger.warning(f"Safety check failed for {agent_id}: {reason}")
+                return ResponseContext(
+                    status="blocked",
+                    message=f"Request blocked due to safety concerns: {reason}",
+                    security_assessment={"reason": reason}
+                )
+                
+            # 3. Log execution for future tracking
+            self.inference_analyzer.log_execution(
+                agent_id, 
+                tool_id, 
+                request.metadata.get("parameters", {}),
+                risk_level
+            )
+
+            # 3b. Policy enforcement (RBAC/ABAC/CBAC)
+            policy_decision = self._evaluate_policy(agent_id, tool_id, risk_level, request)
+            if policy_decision == PolicyDecision.DENY:
+                return ResponseContext(
+                    status="blocked",
+                    message="Request blocked by policy",
+                    security_assessment={"reason": "policy_denied"}
+                )
+            
+            # 4. Proceed with base gateway processing
             response = await super().process_request(agent_id, request)
-            
-            # Add security assessment to response
-            response.security_assessment = security_assessment
-            
-            # Update security statistics
-            if security_assessment.threats_detected:
-                self.security_stats["threats_detected"] += 1
             
             return response
             
         except Exception as e:
-            self.logger.error(f"Error processing request: {e}")
+            self.logger.error(f"Error processing enhanced request: {e}")
             return ResponseContext(
                 status="error",
-                message=f"Request processing failed: {str(e)}",
-                security_assessment=SecurityAssessment(
-                    overall_score=0.0,
-                    details="Request processing error",
-                    risk_level="high"
-                )
+                message=f"Enhanced processing failed: {str(e)}"
             )
-    
-    async def _perform_enhanced_security_checks(
+
+    def _load_oauth_config(self) -> Dict[str, Any]:
+        security_cfg = self.config.get("security", {})
+        return security_cfg.get("oauth", {})
+
+    def _load_sanitization_config(self) -> Dict[str, Any]:
+        security_cfg = self.config.get("security", {})
+        return security_cfg.get("sanitization", {})
+
+    def _validate_oauth_token(
         self,
-        agent_id: str,
+        token: Optional[str],
         request: RequestContext
-    ) -> SecurityAssessment:
-        """
-        Perform enhanced security checks
-        
-        Args:
-            agent_id: Agent ID
-            request: Request context
-            
-        Returns:
-            Security assessment result
-        """
-        threats_detected = []
-        recommendations = []
-        overall_score = 1.0
-        
-        # 1. Dynamic Trust Assessment
-        if self.enable_dynamic_trust and self.dynamic_trust_manager:
-            trust_assessment = await self._assess_dynamic_trust(agent_id, request)
-            if trust_assessment["risk_level"] == "high":
-                threats_detected.append("Low trust score")
-                recommendations.append("Increase trust through positive interactions")
-                overall_score *= 0.7
-        
-        # 2. MAESTRO Multi-Layer Security Assessment
-        if self.enable_maestro_security and self.maestro_security:
-            maestro_assessment = await self._assess_maestro_security(agent_id, request)
-            if maestro_assessment["threats"]:
-                threats_detected.extend(maestro_assessment["threats"])
-                recommendations.extend(maestro_assessment["recommendations"])
-                overall_score *= 0.8
-        
-        # 3. Advanced Behavioral Analysis
-        if self.enable_behavioral_analysis and self.behavioral_analyzer:
-            behavioral_assessment = await self._assess_behavioral_patterns(agent_id, request)
-            if behavioral_assessment["anomaly_score"] > 0.7:
-                threats_detected.append("Behavioral anomaly detected")
-                recommendations.append("Review agent behavior patterns")
-                overall_score *= 0.6
-        
-        # 4. Security Level Specific Checks
-        security_level_checks = await self._perform_security_level_checks(
-            agent_id, request
+    ) -> Tuple[bool, str, Optional[str]]:
+        if not self.identity_manager:
+            return False, "identity_manager_missing", None
+
+        expected_audience = self.oauth_config.get("expected_audience")
+        expected_issuer = self.oauth_config.get("expected_issuer")
+        required_scopes = self.oauth_config.get("required_scopes", [])
+        resource = self.oauth_config.get("resource")
+
+        result = self.identity_manager.validate_access_token(
+            token=token,
+            expected_audience=expected_audience,
+            expected_issuer=expected_issuer,
+            required_scopes=required_scopes,
+            resource=resource
         )
-        if security_level_checks["threats"]:
-            threats_detected.extend(security_level_checks["threats"])
-            recommendations.extend(security_level_checks["recommendations"])
-            overall_score *= security_level_checks["score_multiplier"]
-        
-        # Determine risk level
-        if overall_score >= 0.9:
-            risk_level = "low"
-        elif overall_score >= 0.7:
-            risk_level = "medium"
-        elif overall_score >= 0.5:
-            risk_level = "high"
-        else:
-            risk_level = "critical"
-        
-        return SecurityAssessment(
-            overall_score=overall_score,
-            details=f"Security assessment completed with {len(threats_detected)} threats detected",
-            threats_detected=threats_detected,
-            recommendations=recommendations,
-            risk_level=risk_level
+        if not result.valid:
+            return False, result.reason, None
+
+        return True, "ok", result.agent_id
+
+    def _should_block_sanitization(self, sanitized: Dict[str, Any]) -> bool:
+        max_redactions = int(self.sanitization_config.get("max_redactions", 0))
+        block_on_redaction = bool(self.sanitization_config.get("block_on_redaction", False))
+        if not block_on_redaction:
+            return False
+        return sanitized.get("redactions", 0) > max_redactions
+
+    def _resolve_tool_risk_level(self, tool_id: str) -> str:
+        if self.tool_registry:
+            manifest = self.tool_registry.get_tool(tool_id)
+            if manifest and manifest.risk_level:
+                return manifest.risk_level
+        tool = self.verified_tools.get(tool_id)
+        if tool and tool.risk_level:
+            return tool.risk_level.value if hasattr(tool.risk_level, "value") else str(tool.risk_level)
+
+        if "write" in tool_id or "delete" in tool_id or "execute" in tool_id:
+            return "high"
+        return "low"
+
+    def _verify_tool_manifest_integrity(self, tool_id: str) -> Tuple[bool, str]:
+        if not self.tool_registry:
+            return True, "tool_registry_not_configured"
+
+        if tool_id not in self.tool_registry.tools:
+            return False, "tool_not_registered"
+
+        tool = self.verified_tools.get(tool_id)
+        if not tool:
+            return False, "tool_not_verified"
+
+        runtime_metadata = {
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": tool.parameters
+        }
+        return self.tool_registry.verify_tool_runtime_metadata(tool_id, runtime_metadata)
+
+    def _evaluate_policy(
+        self,
+        agent_id: str,
+        tool_id: str,
+        risk_level: str,
+        request: RequestContext
+    ) -> PolicyDecision:
+        if not self.policy_engine:
+            return PolicyDecision.ALLOW
+
+        identity = self.identity_manager.get_agent_identity(agent_id) if self.identity_manager else None
+        agent_type = identity.agent_type.value if identity else "unknown"
+        capabilities = identity.capabilities if identity else []
+        trust_score = identity.trust_score if identity else 0.5
+
+        if self.trust_calculator:
+            trust = self.trust_calculator.get_trust_score(agent_id)
+            if trust:
+                trust_score = trust.overall_score
+
+        policy_context = PolicyContext(
+            agent_id=agent_id,
+            agent_type=agent_type,
+            agent_capabilities=capabilities,
+            agent_trust_score=trust_score,
+            tool_id=tool_id,
+            tool_risk_level=risk_level,
+            operation=request.operation,
+            parameters=request.metadata.get("parameters", {}) if request.metadata else {},
+            context_metadata=request.metadata or {}
         )
-    
-    async def _assess_dynamic_trust(
-        self,
-        agent_id: str,
-        request: RequestContext
-    ) -> Dict[str, Any]:
-        """
-        Assess dynamic trust for agent
-        
-        Args:
-            agent_id: Agent ID
-            request: Request context
-            
-        Returns:
-            Trust assessment result
-        """
-        try:
-            # Get dynamic trust score
-            trust_score = self.dynamic_trust_manager.get_dynamic_trust_score(agent_id)
-            
-            # Add trust context
-            from ..security.advanced.dynamic_trust_manager import TrustContextData, TrustContext
-            context_data = TrustContextData(
-                context=TrustContext.BEHAVIORAL,
-                score=trust_score.overall_score,
-                timestamp=time.time(),
-                metadata={"request_type": request.operation}
-            )
-            self.dynamic_trust_manager.add_trust_context(agent_id, context_data)
-            
-            # Determine risk level
-            if trust_score.overall_score >= 0.8:
-                risk_level = "low"
-            elif trust_score.overall_score >= 0.6:
-                risk_level = "medium"
-            else:
-                risk_level = "high"
-            
-            return {
-                "trust_score": trust_score.overall_score,
-                "risk_level": risk_level,
-                "context_scores": trust_score.contextual_scores
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Error assessing dynamic trust: {e}")
-            return {"trust_score": 0.5, "risk_level": "medium", "context_scores": {}}
-    
-    async def _assess_maestro_security(
-        self,
-        agent_id: str,
-        request: RequestContext
-    ) -> Dict[str, Any]:
-        """
-        Assess MAESTRO multi-layer security
-        
-        Args:
-            agent_id: Agent ID
-            request: Request context
-            
-        Returns:
-            MAESTRO security assessment result
-        """
-        try:
-            # Prepare system data for assessment
-            system_data = {
-                "agent_id": agent_id,
-                "request": request,
-                "timestamp": time.time(),
-                "security_level": self.security_level.value
-            }
-            
-            # Perform MAESTRO security assessment
-            assessment = self.maestro_security.assess_security_across_layers(system_data)
-            
-            # Identify security gaps
-            gaps = self.maestro_security.identify_security_gaps(assessment)
-            
-            # Get recommendations
-            recommendations = self.maestro_security.get_priority_recommendations(gaps)
-            
-            # Extract threats and recommendations
-            threats = []
-            recs = []
-            
-            for gap in gaps:
-                if gap.severity == "critical":
-                    threats.append(f"Critical security gap: {gap.description}")
-                elif gap.severity == "high":
-                    threats.append(f"High severity gap: {gap.description}")
-            
-            for rec in recommendations:
-                recs.append(rec.description)
-            
-            return {
-                "overall_score": assessment.overall_security_score,
-                "threats": threats,
-                "recommendations": recs,
-                "layer_scores": assessment.layer_scores
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Error assessing MAESTRO security: {e}")
-            return {
-                "overall_score": 0.5,
-                "threats": [],
-                "recommendations": [],
-                "layer_scores": {}
-            }
-    
-    async def _assess_behavioral_patterns(
-        self,
-        agent_id: str,
-        request: RequestContext
-    ) -> Dict[str, Any]:
-        """
-        Assess behavioral patterns for anomalies
-        
-        Args:
-            agent_id: Agent ID
-            request: Request context
-            
-        Returns:
-            Behavioral assessment result
-        """
-        try:
-            # Create behavior sequence from request
-            from ..security.advanced.advanced_behavioral_analysis import BehaviorSequence, BehaviorEvent
-            behavior_events = [
-                BehaviorEvent(
-                    event_type="request",
-                    timestamp=time.time(),
-                    agent_id=agent_id,
-                    data={"operation": request.operation, "resource": request.resource}
-                )
-            ]
-            
-            behavior_sequence = BehaviorSequence(
-                agent_id=agent_id,
-                events=behavior_events,
-                start_time=time.time(),
-                end_time=time.time()
-            )
-            
-            # Perform behavioral analysis
-            assessment = self.behavioral_analyzer.analyze_behavior(agent_id, behavior_sequence)
-            
-            return {
-                "anomaly_score": assessment.anomaly_score,
-                "deception_score": assessment.deception_score,
-                "behavioral_assessment": assessment
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Error assessing behavioral patterns: {e}")
-            return {
-                "anomaly_score": 0.0,
-                "deception_score": 0.0,
-                "behavioral_assessment": None
-            }
-    
-    async def _perform_security_level_checks(
-        self,
-        agent_id: str,
-        request: RequestContext
-    ) -> Dict[str, Any]:
-        """
-        Perform security level specific checks
-        
-        Args:
-            agent_id: Agent ID
-            request: Request context
-            
-        Returns:
-            Security level check results
-        """
-        threats = []
-        recommendations = []
-        score_multiplier = 1.0
-        
-        if self.security_level == SecurityLevel.MINIMAL:
-            # Minimal security checks
-            if request.operation in ["admin", "root"]:
-                threats.append("Admin operation with minimal security")
-                recommendations.append("Upgrade to higher security level")
-                score_multiplier = 0.8
-        
-        elif self.security_level == SecurityLevel.STANDARD:
-            # Standard security checks
-            if request.operation in ["sensitive_data_access", "system_config"]:
-                threats.append("Sensitive operation detected")
-                recommendations.append("Consider enhanced security level")
-                score_multiplier = 0.9
-        
-        elif self.security_level == SecurityLevel.ENHANCED:
-            # Enhanced security checks
-            if request.operation in ["data_export", "bulk_operations"]:
-                threats.append("High-risk operation detected")
-                recommendations.append("Monitor operation closely")
-                score_multiplier = 0.95
-        
-        elif self.security_level == SecurityLevel.MAXIMUM:
-            # Maximum security checks
-            if request.operation in ["system_shutdown", "security_disable"]:
-                threats.append("Critical system operation")
-                recommendations.append("Require additional authorization")
-                score_multiplier = 0.98
-        
-        return {
-            "threats": threats,
-            "recommendations": recommendations,
-            "score_multiplier": score_multiplier
-        }
-    
-    def get_security_statistics(self) -> Dict[str, Any]:
-        """
-        Get security statistics
-        
-        Returns:
-            Dictionary containing security statistics
-        """
-        return {
-            "security_level": self.security_level.value,
-            "features_enabled": {
-                "dynamic_trust": self.enable_dynamic_trust,
-                "maestro_security": self.enable_maestro_security,
-                "behavioral_analysis": self.enable_behavioral_analysis
-            },
-            "statistics": self.security_stats.copy(),
-            "security_effectiveness": self._calculate_security_effectiveness()
-        }
-    
-    def _calculate_security_effectiveness(self) -> float:
-        """
-        Calculate security effectiveness score
-        
-        Returns:
-            Security effectiveness score (0.0 to 1.0)
-        """
-        if self.security_stats["requests_processed"] == 0:
-            return 1.0
-        
-        # Calculate effectiveness based on threat detection rate
-        threat_detection_rate = self.security_stats["threats_detected"] / self.security_stats["requests_processed"]
-        
-        # Calculate effectiveness based on security violation rate
-        violation_rate = self.security_stats["security_violations"] / self.security_stats["requests_processed"]
-        
-        # Combine metrics (lower violation rate and higher detection rate is better)
-        effectiveness = 1.0 - violation_rate + (threat_detection_rate * 0.5)
-        
-        return max(0.0, min(1.0, effectiveness))
-    
-    async def update_security_level(self, new_level: SecurityLevel) -> bool:
-        """
-        Update security level
-        
-        Args:
-            new_level: New security level
-            
-        Returns:
-            True if update successful, False otherwise
-        """
-        try:
-            self.security_level = new_level
-            self.logger.info(f"Security level updated to: {new_level.value}")
-            return True
-        except Exception as e:
-            self.logger.error(f"Error updating security level: {e}")
-            return False
-    
-    async def enable_advanced_features(
-        self,
-        dynamic_trust: bool = None,
-        maestro_security: bool = None,
-        behavioral_analysis: bool = None
-    ) -> bool:
-        """
-        Enable or disable advanced security features
-        
-        Args:
-            dynamic_trust: Enable/disable dynamic trust
-            maestro_security: Enable/disable MAESTRO security
-            behavioral_analysis: Enable/disable behavioral analysis
-            
-        Returns:
-            True if update successful, False otherwise
-        """
-        try:
-            if dynamic_trust is not None:
-                self.enable_dynamic_trust = dynamic_trust
-                if dynamic_trust and not self.dynamic_trust_manager:
-                    self.dynamic_trust_manager = DynamicTrustManager()
-            
-            if maestro_security is not None:
-                self.enable_maestro_security = maestro_security
-                if maestro_security and not self.maestro_security:
-                    self.maestro_security = MAESTROLayerSecurity()
-            
-            if behavioral_analysis is not None:
-                self.enable_behavioral_analysis = behavioral_analysis
-                if behavioral_analysis and not self.behavioral_analyzer:
-                    self.behavioral_analyzer = AdvancedBehavioralAnalysis()
-            
-            self.logger.info("Advanced security features updated")
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"Error updating advanced features: {e}")
-            return False
+        return self.policy_engine.evaluate_access(policy_context)

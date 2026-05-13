@@ -9,6 +9,7 @@ import hashlib
 import secrets
 import base64
 from typing import Tuple, Optional, Union, Dict, Any
+import time
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -144,9 +145,6 @@ def generate_hash(data: Union[str, bytes], algorithm: str = "SHA256") -> str:
     # Convert data to bytes if string
     if isinstance(data, str):
         data = data.encode('utf-8')
-    
-    # Get hash function
-    hash_func = getattr(hashes, algorithm.upper(), hashes.SHA256)
     
     # Generate hash
     digest = hashlib.new(algorithm.lower(), data)
@@ -367,7 +365,7 @@ def verify_certificate(certificate: bytes, issuer_public_key: bytes) -> bool:
 
 
 def create_secure_token(
-    data: Dict[str, any],
+    data: Dict[str, Any],
     secret_key: str,
     expiration_seconds: int = 3600
 ) -> str:
@@ -404,7 +402,7 @@ def create_secure_token(
     return token_encoded
 
 
-def verify_secure_token(token: str, secret_key: str) -> Optional[Dict[str, any]]:
+def verify_secure_token(token: str, secret_key: str) -> Optional[Dict[str, Any]]:
     """
     Verify and decode secure token
     

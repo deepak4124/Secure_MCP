@@ -3,7 +3,7 @@ Core security components for MCP Security Framework
 """
 
 from .identity import IdentityManager, AgentType, IdentityStatus
-from .trust import TrustCalculator, TrustEvent, TrustEventType
+from .trust import TrustCalculator, TrustEvent
 from .gateway import MCPSecurityGateway, MCPTool, MCPToolStatus, MCPToolRisk
 from .policy import PolicyEngine, AccessPolicy, PolicyDecision
 from .registry import ToolRegistry, ToolManifest, ToolAttestation
@@ -14,7 +14,6 @@ __all__ = [
     "IdentityStatus", 
     "TrustCalculator",
     "TrustEvent",
-    "TrustEventType",
     "MCPSecurityGateway",
     "MCPTool",
     "MCPToolStatus",
